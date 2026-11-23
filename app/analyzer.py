@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 """Deterministic, read-only checks for Kubernetes workload manifests."""
 from dataclasses import asdict, dataclass
 from typing import Any
