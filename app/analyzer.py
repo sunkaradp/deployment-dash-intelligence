@@ -1,7 +1,4 @@
 """Deterministic, read-only checks for Kubernetes workload manifests."""
-from __future__ import annotations
-
-import dataclasses
 from dataclasses import asdict, dataclass
 from typing import Any
 
