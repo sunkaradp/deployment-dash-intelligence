@@ -82,9 +82,9 @@ function App() {
   const [fileName, setFileName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const visible = useMemo(() => analysis ? analysis.findings.filter((item) => filter === "all" || item.severity === filter) : [], [analysis, filter]);
-  const selectedFinding = visible.find((item) => item.rule_id === selected) || visible[0];
+  const selectedFinding = visible.find((item) => item.rule_id + item.path === selected) || visible[0];
   function run() {
-    try { const result = analyzeYaml(yaml); setAnalysis(result); setError(""); setFilter("all"); setSelected(result.findings[0]?.rule_id || ""); }
+    try { const result = analyzeYaml(yaml); setAnalysis(result); setError(""); setFilter("all"); setSelected(result.findings[0] ? result.findings[0].rule_id + result.findings[0].path : ""); }
     catch (err) { setAnalysis(null); setError(err instanceof Error ? err.message : "Analysis failed."); }
   }
   function loadFile(file?: File) {
@@ -133,7 +133,7 @@ function App() {
               </div>
               <div className="findings-panel panel"><div className="findings-head"><div><h2>Findings <span>{visible.length}</span></h2><p>Prioritized checks with actionable context</p></div><button className="filter-btn" onClick={() => setFilter("all")}>All findings <ChevronDown size={13}/></button></div>
                 {visible.length === 0 ? <div className="no-findings"><CheckCircle2 size={22}/><strong>No findings in this category</strong><span>Nothing to review here.</span></div> :
-                  <div className="finding-list">{visible.map((item) => <button key={item.rule_id + item.path} className={"finding-item " + (selectedFinding === item ? "selected" : "")} onClick={() => setSelected(item.rule_id)}><span className={"finding-symbol " + item.severity}>{item.severity === "critical" || item.severity === "high" ? <AlertTriangle size={15}/> : <Info size={15}/>}</span><span className="finding-main"><strong>{item.title}</strong><small>{item.path}</small></span><span className={"severity-tag " + item.severity}>{item.severity}</span><ArrowRight size={14} className="finding-arrow"/></button>)}</div>}
+                  <div className="finding-list">{visible.map((item) => <button key={item.rule_id + item.path} className={"finding-item " + (selectedFinding === item ? "selected" : "")} onClick={() => setSelected(item.rule_id + item.path)}><span className={"finding-symbol " + item.severity}>{item.severity === "critical" || item.severity === "high" ? <AlertTriangle size={15}/> : <Info size={15}/>}</span><span className="finding-main"><strong>{item.title}</strong><small>{item.path}</small></span><span className={"severity-tag " + item.severity}>{item.severity}</span><ArrowRight size={14} className="finding-arrow"/></button>)}</div>}
                 {selectedFinding && <div className="finding-detail"><div className="detail-top"><span>SELECTED FINDING</span><code>{selectedFinding.rule_id}</code></div><h3>{selectedFinding.title}</h3><p>{selectedFinding.message}</p><div className="detail-path"><Terminal size={13}/><code>{selectedFinding.path}</code><button title="Copy path" onClick={() => navigator.clipboard?.writeText(selectedFinding.path)}><Clipboard size={13}/></button></div><div className="recommendation"><span><Sparkles size={14}/> RECOMMENDATION</span><p>{selectedFinding.recommendation}</p></div></div>}
               </div>
             </>}
