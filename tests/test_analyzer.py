@@ -1,3 +1,5 @@
+import pytest
+
 from fastapi.testclient import TestClient
 
 from app.analyzer import ManifestError, analyze_documents
@@ -296,3 +298,30 @@ spec:
 """)
     assert result["summary"]["workloads_analyzed"] == 1
     assert "RUN_AS_ROOT" not in {item["rule_id"] for item in result["findings"]}
+
+
+
+def test_rejects_input_over_one_megabyte():
+    from app.analyzer import MAX_INPUT_BYTES
+
+    with pytest.raises(ManifestError, match="byte limit"):
+        analyze_documents(" " * (MAX_INPUT_BYTES + 1))
+
+
+def test_rejects_more_than_one_hundred_documents():
+    source = "---\nkind: ConfigMap\nmetadata:\n  name: ignored\n" * 101
+    with pytest.raises(ManifestError, match="100-document"):
+        analyze_documents(source)
+
+
+def test_rejects_excessive_yaml_aliases():
+    aliases = " ".join(f"*a{i}" for i in range(51))
+    source = "base: &base value\nitems: [" + aliases + "]\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: x\nspec:\n  template:\n    spec:\n      containers:\n        - name: app\n          image: app:1\n"
+    with pytest.raises(ManifestError, match="parser safety limit"):
+        analyze_documents(source)
+
+
+def test_rejects_excessive_yaml_nesting():
+    source = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: x\nextra: " + "[" * 60 + "0" + "]" * 60 + "\nspec:\n  template:\n    spec:\n      containers:\n        - name: app\n          image: app:1\n"
+    with pytest.raises(ManifestError, match="parser safety limit"):
+        analyze_documents(source)
