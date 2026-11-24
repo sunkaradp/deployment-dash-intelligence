@@ -138,8 +138,7 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                     ))
 
             pod_security = _mapping(pod_spec.get("securityContext"))
-            container_security = _mapping(container.get("securityContext"))
-            security = {**pod_security, **container_security}
+            security = _mapping(container.get("securityContext"))
             if security.get("privileged") is True:
                 findings.append(Finding(
                     "PRIVILEGED_CONTAINER", "critical", "Privileged container",
@@ -154,7 +153,7 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                     f"{path}.securityContext.allowPrivilegeEscalation",
                     "Set allowPrivilegeEscalation to false where compatible.", 15,
                 ))
-            if security.get("runAsNonRoot") is not True:
+            if security.get("runAsNonRoot", pod_security.get("runAsNonRoot")) is not True:
                 findings.append(Finding(
                     "RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced",
                     "The container security context does not enforce a non-root user.",
