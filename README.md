@@ -14,12 +14,18 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 
 - Browser-based YAML upload and editing.
 - Multi-document YAML parsing.
-- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution (including Pod-level `runAsNonRoot` inheritance), and host networking.
+- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution and UID 0, read-only root filesystems, Linux capabilities, seccomp profiles, host namespaces, host networking, host ports, hostPath volumes, and explicit service-account-token automounting.
 - Finding severity, evidence path, and recommendation.
 - Optional FastAPI analysis endpoint.
 - Responsive React and TypeScript interface.
 - GitHub Actions workflows for backend quality checks, frontend deployment, and optional Kubescape PR scanning.
 - Local import of Kubescape SARIF JSON reports into the dashboard.
+
+## Kubernetes security checks
+
+The built-in rules are deterministic manifest checks, not a full Kubernetes policy engine. They intentionally flag configuration that deserves review, including missing hardening settings. A finding is not automatically proof of exploitability: validate each recommendation against application requirements, cluster defaults, and your admission policy.
+
+The analyzer checks both Pod-level and container-level security-context settings where Kubernetes supports inheritance or overrides. It does not inspect live cluster defaults, service-account configuration, admission policies, image contents, or runtime state.
 
 ## Architecture
 
