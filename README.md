@@ -18,7 +18,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 - Finding severity, evidence path, and recommendation.
 - Optional FastAPI analysis endpoint.
 - Responsive React and TypeScript interface.
-- GitHub Actions workflows for backend quality checks, frontend deployment, and optional Kubescape PR scanning.
+- GitHub Actions workflows for backend quality checks, frontend deployment, CodeQL analysis, Gitleaks secret scanning, Dependabot updates, and optional Kubescape PR scanning.
 - Local import of Kubescape SARIF JSON reports into the dashboard.
 
 ## Kubernetes security checks
@@ -37,7 +37,7 @@ The analyzer checks both Pod-level and container-level security-context settings
 | Quality | pytest, Ruff, TypeScript, Vite, GitHub Actions | Backend tests/lint and frontend production build |
 | Hosting | GitHub Pages | Public static frontend |
 
-The browser runs deterministic checks locally by default, so the public demo can work without a hosted API or Kubernetes credentials. The FastAPI endpoint is available for API-backed integration.
+The browser runs deterministic checks locally by default, so the public demo works without a hosted API or Kubernetes credentials. The FastAPI endpoint is an optional private/local integration surface and is not part of the public demo.
 
 ## Run locally
 
@@ -57,14 +57,22 @@ From the repository root:
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 127.0.0.1
 ```
 
 API health: `GET /healthz`
 
 Analyze a manifest: `POST /api/v1/analyze`
 
-Interactive API documentation: `/docs` while the API is running.
+Interactive API documentation: `http://127.0.0.1:8000/docs` while the API is running.
+
+The API is deliberately private/local. Do not bind it to `0.0.0.0` or expose it through a public reverse proxy. If you run the container image, publish the port only on loopback, for example:
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 deployment-dash-intelligence
+```
+
+The API currently has no authentication, authorization, or rate limiting; loopback binding is a deployment precaution, not a substitute for those controls.
 
 
 ## Kubescape GitHub pull-request review
