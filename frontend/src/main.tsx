@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { loadAll } from "js-yaml";
-import { Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, Github, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, Github, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
 import "./styles.css";
 
 type Severity = "critical" | "high" | "medium" | "low";
@@ -247,13 +247,13 @@ function App() {
   }
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="#"><span className="brand-mark"><Layers3 size={19}/></span><span><strong>deploy<span>dash</span></strong><small>INTELLIGENCE</small></span></a>
+      <a className="brand" href="#"><span className="brand-mark"><Layers3 size={19}/></span><span><strong>deploy<span>dash</span></strong><small>DEPLOYMENT REVIEW</small></span></a>
       <div className="side-label">WORKSPACE</div>
       <div className="side-item active"><Gauge size={17}/> Readiness analysis <i/></div>
-      <div className="side-item muted"><Activity size={17}/> Analysis history <small>SOON</small></div>
+      
       <div className="side-label side-label-bottom">PROJECT</div>
       <a className="side-item" href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><Github size={17}/> GitHub repository <ArrowRight size={14}/></a>
-      <div className="sidebar-foot"><div className="status-line"><span/> LOCAL ANALYSIS ENGINE</div><p>Manifest checks run in your browser. No cluster credentials required.</p><div className="version">MVP · v0.1.0</div></div>
+      <div className="sidebar-foot"><div className="status-line"><span/> LOCAL ANALYSIS ENGINE</div><p>Manifest checks run in your browser. No cluster credentials required.</p><div className="version">LOCAL · READ ONLY</div></div>
     </aside>
     <main className="main-area">
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>Readiness analysis</strong></div><div className="top-actions"><span className="privacy"><LockKeyhole size={13}/> READ-ONLY MODE</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><Github size={16}/> Source</a></div></header>
