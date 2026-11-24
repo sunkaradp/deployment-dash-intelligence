@@ -79,10 +79,10 @@ def _containers(pod_spec: dict[str, Any]) -> list[dict[str, Any]]:
 
 def analyze_documents(yaml_text: str) -> dict[str, Any]:
     """Analyze supported Kubernetes workloads and return explainable findings."""
-    if not yaml_text.strip():
-        raise ManifestError("Provide at least one Kubernetes YAML document.")
     if len(yaml_text.encode("utf-8")) > MAX_INPUT_BYTES:
         raise ManifestError(f"Input exceeds the {MAX_INPUT_BYTES:,}-byte limit.")
+    if not yaml_text.strip():
+        raise ManifestError("Provide at least one Kubernetes YAML document.")
 
     try:
         documents = []
