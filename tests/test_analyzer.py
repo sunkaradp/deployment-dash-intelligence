@@ -182,3 +182,27 @@ spec:
 """)
     finding = next(item for item in result["findings"] if item["rule_id"] == "RUN_AS_NON_ROOT_NOT_SET")
     assert finding["path"].endswith("containers[0].securityContext.runAsNonRoot")
+
+
+def test_container_without_image_is_reported():
+    result = analyze_documents("""
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: missing-image
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: missing-image
+  template:
+    metadata:
+      labels:
+        app: missing-image
+    spec:
+      containers:
+        - name: app
+""")
+    finding = next(item for item in result["findings"] if item["rule_id"] == "MISSING_CONTAINER_IMAGE")
+    assert finding["severity"] == "high"
+    assert finding["path"].endswith("containers[0].image")
