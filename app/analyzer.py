@@ -27,6 +27,34 @@ class ManifestError(ValueError):
     """Raised when the supplied YAML cannot be parsed safely."""
 
 
+MAX_INPUT_BYTES = 1_000_000
+MAX_DOCUMENTS = 100
+MAX_YAML_ALIASES = 50
+MAX_YAML_DEPTH = 50
+
+
+class BoundedSafeLoader(yaml.SafeLoader):
+    """Safe YAML loader with explicit alias and nesting limits."""
+
+    def __init__(self, stream: Any) -> None:
+        super().__init__(stream)
+        self._alias_count = 0
+        self._compose_depth = 0
+
+    def compose_node(self, parent: Any, index: Any) -> Any:
+        if self.check_event(yaml.AliasEvent):
+            self._alias_count += 1
+            if self._alias_count > MAX_YAML_ALIASES:
+                raise yaml.YAMLError("YAML alias limit exceeded")
+        self._compose_depth += 1
+        try:
+            if self._compose_depth > MAX_YAML_DEPTH:
+                raise yaml.YAMLError("YAML nesting limit exceeded")
+            return super().compose_node(parent, index)
+        finally:
+            self._compose_depth -= 1
+
+
 def _mapping(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -53,11 +81,17 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
     """Analyze supported Kubernetes workloads and return explainable findings."""
     if not yaml_text.strip():
         raise ManifestError("Provide at least one Kubernetes YAML document.")
+    if len(yaml_text.encode("utf-8")) > MAX_INPUT_BYTES:
+        raise ManifestError(f"Input exceeds the {MAX_INPUT_BYTES:,}-byte limit.")
 
     try:
-        documents = list(yaml.safe_load_all(yaml_text))
+        documents = []
+        for document in yaml.load_all(yaml_text, Loader=BoundedSafeLoader):
+            if len(documents) >= MAX_DOCUMENTS:
+                raise ManifestError(f"Input exceeds the {MAX_DOCUMENTS}-document limit.")
+            documents.append(document)
     except yaml.YAMLError as exc:
-        raise ManifestError(f"Invalid YAML: {exc.__class__.__name__}") from exc
+        raise ManifestError(f"Invalid YAML or parser safety limit: {exc.__class__.__name__}") from exc
 
     findings: list[Finding] = []
     analyzed = 0
