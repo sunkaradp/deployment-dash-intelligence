@@ -24,7 +24,7 @@ function analyzeYaml(source: string): Analysis {
   if (new TextEncoder().encode(source).length > MAX_INPUT_BYTES) throw new Error("Input exceeds the 1 MB safety limit.");
   const docs: unknown[] = [];
   try {
-    const yamlOptions = { maxAliasCount: 50 } as unknown as Parameters<typeof loadAll>[2];
+    const yamlOptions = { maxDepth: 50, maxTotalMergeKeys: 10_000 } as unknown as Parameters<typeof loadAll>[2];
     loadAll(source, (document: unknown) => {
       if (docs.length >= MAX_DOCUMENTS) throw new Error("Input exceeds the 100-document safety limit.");
       docs.push(document);
