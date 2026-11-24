@@ -73,6 +73,58 @@ function analyzeYaml(source: string): Analysis {
   return { risk_score: score, risk_level: risk, summary: { workloads_analyzed: analyzed, documents_ignored: ignored, findings: findings.length, by_severity: bySeverity }, findings, disclaimer: "Advisory analysis only; this tool does not validate cluster state or apply changes." };
 }
 
+function analysisFromSarif(raw: unknown): Analysis {
+  const report = obj(raw);
+  const runs = Array.isArray(report.runs) ? report.runs : [];
+  const findings: Finding[] = [];
+  const seen = new Set<string>();
+  for (const run of runs) {
+    const results = Array.isArray(obj(run).results) ? obj(run).results : [];
+    for (const item of results) {
+      const result = obj(item);
+      const ruleId = String(result.ruleId || "KUBESCAPE_FINDING");
+      const level = String(result.level || "warning").toLowerCase();
+      const severityText = String(obj(result.properties).severity || "").toLowerCase();
+      const securitySeverity = Number(obj(result.properties)["security-severity"] || 0);
+      const severity: Severity = /critical/.test(severityText) || securitySeverity >= 9 ? "critical"
+        : /high/.test(severityText) || securitySeverity >= 7 || level === "error" ? "high"
+        : /low/.test(severityText) || level === "note" ? "low" : "medium";
+      const location = obj((Array.isArray(result.locations) ? result.locations[0] : {}).physicalLocation);
+      const artifact = obj(location.artifactLocation);
+      const region = obj(location.region);
+      const uri = String(artifact.uri || "manifest");
+      const line = region.startLine ? ":" + region.startLine : "";
+      const path = uri + line;
+      const message = String(obj(result.message).text || "Kubescape reported a configuration finding.");
+      const key = ruleId + path + message;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      findings.push({
+        rule_id: ruleId,
+        severity,
+        title: ruleId.replace(/[-_]/g, " "),
+        message,
+        path,
+        recommendation: String(obj(result.properties).recommendation || "Review the Kubescape control details and remediate the configuration before deployment."),
+        points: severity === "critical" ? 25 : severity === "high" ? 15 : severity === "medium" ? 8 : 4,
+      });
+    }
+  }
+  if (!runs.length) throw new Error("This file does not contain a SARIF runs array.");
+  const score = Math.min(100, findings.reduce((sum, item) => sum + item.points, 0));
+  const risk: Severity = score >= 60 ? "critical" : score >= 35 ? "high" : score >= 15 ? "medium" : "low";
+  const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+  findings.forEach((item) => { bySeverity[item.severity] += 1; });
+  const workloads = new Set(findings.map((item) => item.path.split(":")[0]));
+  return {
+    risk_score: score,
+    risk_level: risk,
+    summary: { workloads_analyzed: workloads.size, documents_ignored: 0, findings: findings.length, by_severity: bySeverity },
+    findings,
+    disclaimer: "Imported Kubescape SARIF results. Severity is mapped for display; the score is a local heuristic, not Kubescape's compliance score.",
+  };
+}
+
 function App() {
   const [yaml, setYaml] = useState(SAMPLE);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -93,13 +145,24 @@ function App() {
     reader.onload = () => {
       const content = String(reader.result || "");
       if (content.includes("\u0000")) {
-        setError("This looks like a ZIP or binary file. Extract the ZIP first, then choose an individual .yaml file.");
+        setError("This looks like a ZIP or binary file. Extract it first, then choose a YAML or SARIF report.");
         return;
       }
-      setYaml(content);
-      setFileName(file.name || "uploaded-manifest.yaml");
-      setAnalysis(null);
-      setError("");
+      try {
+        if (/\\.(sarif|json)$/i.test(file.name)) {
+          const imported = analysisFromSarif(JSON.parse(content));
+          setAnalysis(imported);
+          setFilter("all");
+          setSelected(imported.findings[0] ? imported.findings[0].rule_id + imported.findings[0].path : "");
+        } else {
+          setYaml(content);
+          setAnalysis(null);
+        }
+        setFileName(file.name || "uploaded-manifest.yaml");
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not read this report. Choose a Kubernetes YAML or SARIF JSON file.");
+      }
     };
     reader.onerror = () => setError("The selected file could not be read.");
     reader.readAsText(file);
@@ -128,7 +191,7 @@ function App() {
           <div className="panel-head"><div className="panel-title"><span className="panel-icon"><FileCode2 size={17}/></span><div><h2>Manifest input</h2><p>Paste YAML or upload a file</p></div></div><div className="file-pill"><i/> {fileName || "deployment.yaml"}</div></div>
           <div className="editor-toolbar"><span><b>Y</b> YAML</span><div className="editor-tools"><button onClick={() => { setYaml(SAMPLE); setFileName(""); setAnalysis(null); setError(""); }}><RotateCcw size={13}/> Risky sample</button><button onClick={() => { setYaml(CLEAN_SAMPLE); setFileName(""); setAnalysis(null); setError(""); }}><CheckCircle2 size={13}/> Clean sample</button><button onClick={() => { setYaml(""); setFileName(""); setAnalysis(null); setError(""); }}><X size={13}/> Clear</button></div></div>
           <div className="code-wrap"><div className="line-numbers">{yaml.split("\n").map((_, i) => <span key={i}>{i + 1}</span>)}</div><textarea spellCheck={false} aria-label="Kubernetes YAML manifest" value={yaml} onChange={(e) => { setYaml(e.target.value); setAnalysis(null); setError(""); }} placeholder={"apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app"}/></div>
-          <div className="editor-bottom"><button onClick={() => fileRef.current?.click()}><Upload size={15}/> Upload YAML</button><input ref={fileRef} type="file" accept=".yaml,.yml,.yml.txt,.txt,text/yaml,text/plain,application/x-yaml" hidden onChange={(e) => { const file = e.target.files?.[0]; loadFile(file); e.currentTarget.value = ""; }}/><span>{yaml.split("\n").length} lines · {new Blob([yaml]).size.toLocaleString()} bytes</span></div>
+          <div className="editor-bottom"><button onClick={() => fileRef.current?.click()}><Upload size={15}/> Upload YAML</button><input ref={fileRef} type="file" accept=".yaml,.yml,.sarif,.json,.txt,text/yaml,application/json,text/plain,application/x-yaml" hidden onChange={(e) => { const file = e.target.files?.[0]; loadFile(file); e.currentTarget.value = ""; }}/><span>{yaml.split("\n").length} lines · {new Blob([yaml]).size.toLocaleString()} bytes</span></div>
           {error && <div className="error-banner"><AlertCircle size={16}/>{error}</div>}
           <button className="analyze-btn" onClick={run}><Play size={16} fill="currentColor"/> Analyze manifest <ArrowRight size={16}/></button>
           <div className="editor-footnote"><LockKeyhole size={12}/> Analysis runs locally in this browser. Your YAML is not uploaded.</div>
