@@ -6,7 +6,7 @@ import "./styles.css";
 
 type Severity = "critical" | "high" | "medium" | "low";
 type Finding = { rule_id: string; severity: Severity; title: string; message: string; path: string; recommendation: string; points: number };
-type Analysis = { risk_score: number; risk_level: Severity; summary: { workloads_analyzed: number; documents_ignored: number; findings: number; by_severity: Record<Severity, number> }; findings: Finding[]; disclaimer: string };
+type Analysis = { source: "yaml" | "sarif"; risk_score: number; risk_level: Severity; summary: { workloads_analyzed: number; documents_ignored: number; findings: number; by_severity: Record<Severity, number> }; findings: Finding[]; disclaimer: string };
 
 const SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      hostNetwork: true\n      containers:\n        - name: api\n          image: example.com/payments-api:latest\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"100m\"\n            limits:\n              cpu: \"500m\"\n          securityContext:\n            privileged: true\n            allowPrivilegeEscalation: true\n";
 const CLEAN_SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: storefront\n  namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: storefront\n  template:\n    metadata:\n      labels:\n        app: storefront\n    spec:\n      containers:\n        - name: web\n          image: ghcr.io/acme/storefront:2.4.1\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"200m\"\n              memory: \"256Mi\"\n            limits:\n              cpu: \"1\"\n              memory: \"512Mi\"\n          readinessProbe:\n            httpGet:\n              path: /ready\n              port: 8080\n          livenessProbe:\n            httpGet:\n              path: /health\n              port: 8080\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n";
@@ -70,59 +70,95 @@ function analyzeYaml(source: string): Analysis {
   const risk: Severity = score >= 60 ? "critical" : score >= 35 ? "high" : score >= 15 ? "medium" : "low";
   const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
   findings.forEach((item) => { bySeverity[item.severity] += 1; });
-  return { risk_score: score, risk_level: risk, summary: { workloads_analyzed: analyzed, documents_ignored: ignored, findings: findings.length, by_severity: bySeverity }, findings, disclaimer: "Advisory analysis only; this tool does not validate cluster state or apply changes." };
+  return { source: "yaml", risk_score: score, risk_level: risk, summary: { workloads_analyzed: analyzed, documents_ignored: ignored, findings: findings.length, by_severity: bySeverity }, findings, disclaimer: "Advisory analysis only; this tool does not validate cluster state or apply changes." };
 }
 
 function analysisFromSarif(raw: unknown): Analysis {
   const report = obj(raw);
   const runs = Array.isArray(report.runs) ? report.runs : [];
+  if (!runs.length) throw new Error("This file does not contain a SARIF runs array.");
+
   const findings: Finding[] = [];
   const seen = new Set<string>();
-  for (const run of runs) {
-    const results = Array.isArray(obj(run).results) ? obj(run).results : [];
+  const manifestsWithFindings = new Set<string>();
+
+  for (const runValue of runs) {
+    const run = obj(runValue);
+    const driver = obj(obj(run.tool).driver);
+    const rules = Array.isArray(driver.rules) ? driver.rules.map(obj) : [];
+    const results = Array.isArray(run.results) ? run.results : [];
+
     for (const item of results) {
       const result = obj(item);
       const ruleId = String(result.ruleId || "KUBESCAPE_FINDING");
-      const level = String(result.level || "warning").toLowerCase();
-      const severityText = String(obj(result.properties).severity || "").toLowerCase();
-      const securitySeverity = Number(obj(result.properties)["security-severity"] || 0);
+      const ruleIndex = Number.isInteger(result.ruleIndex) ? Number(result.ruleIndex) : -1;
+      const descriptor = rules.find((rule) => String(rule.id || "") === ruleId) || rules[ruleIndex] || {};
+      const resultProperties = obj(result.properties);
+      const ruleProperties = obj(descriptor.properties);
+      const level = String(result.level || obj(descriptor.defaultConfiguration).level || "warning").toLowerCase();
+      const severityText = String(
+        resultProperties.severity || resultProperties.controlSeverity ||
+        ruleProperties.severity || ruleProperties.controlSeverity || ""
+      ).toLowerCase();
+      const securitySeverity = Number(
+        resultProperties["security-severity"] || ruleProperties["security-severity"] || 0
+      );
       const severity: Severity = /critical/.test(severityText) || securitySeverity >= 9 ? "critical"
         : /high/.test(severityText) || securitySeverity >= 7 || level === "error" ? "high"
-        : /low/.test(severityText) || level === "note" ? "low" : "medium";
+        : /low|info/.test(severityText) || level === "note" ? "low" : "medium";
+
       const firstLocation = Array.isArray(result.locations) ? obj(result.locations[0]) : {};
-      const location = obj(firstLocation.physicalLocation);
-      const artifact = obj(location.artifactLocation);
-      const region = obj(location.region);
+      const physicalLocation = obj(firstLocation.physicalLocation);
+      const artifact = obj(physicalLocation.artifactLocation);
+      const region = obj(physicalLocation.region);
       const uri = String(artifact.uri || "manifest");
       const line = region.startLine ? ":" + region.startLine : "";
       const path = uri + line;
-      const message = String(obj(result.message).text || "Kubescape reported a configuration finding.");
-      const key = ruleId + path + message;
+      const message = String(
+        obj(result.message).text ||
+        obj(descriptor.shortDescription).text ||
+        ruleId
+      );
+      const key = ruleId + "|" + path + "|" + message;
       if (seen.has(key)) continue;
       seen.add(key);
+      manifestsWithFindings.add(uri);
+
+      const title = String(
+        obj(descriptor.shortDescription).text ||
+        obj(result.message).text ||
+        ruleId.replace(/[-_]/g, " ")
+      );
+      const helpText = String(
+        obj(resultProperties).remediation ||
+        obj(resultProperties).recommendation ||
+        obj(descriptor.help).text ||
+        "Review the Kubescape control details and remediate the configuration before deployment."
+      );
       findings.push({
         rule_id: ruleId,
         severity,
-        title: ruleId.replace(/[-_]/g, " "),
+        title,
         message,
         path,
-        recommendation: String(obj(result.properties).recommendation || "Review the Kubescape control details and remediate the configuration before deployment."),
+        recommendation: helpText,
         points: severity === "critical" ? 25 : severity === "high" ? 15 : severity === "medium" ? 8 : 4,
       });
     }
   }
-  if (!runs.length) throw new Error("This file does not contain a SARIF runs array.");
+
   const score = Math.min(100, findings.reduce((sum, item) => sum + item.points, 0));
   const risk: Severity = score >= 60 ? "critical" : score >= 35 ? "high" : score >= 15 ? "medium" : "low";
   const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
   findings.forEach((item) => { bySeverity[item.severity] += 1; });
-  const workloads = new Set(findings.map((item) => item.path.split(":")[0]));
+
   return {
+    source: "sarif",
     risk_score: score,
     risk_level: risk,
-    summary: { workloads_analyzed: workloads.size, documents_ignored: 0, findings: findings.length, by_severity: bySeverity },
+    summary: { workloads_analyzed: manifestsWithFindings.size, documents_ignored: 0, findings: findings.length, by_severity: bySeverity },
     findings,
-    disclaimer: "Imported Kubescape SARIF results. Severity is mapped for display; the score is a local heuristic, not Kubescape's compliance score.",
+    disclaimer: "Imported SARIF results. The count represents manifest files with findings; severity is mapped for display and the score is a local heuristic, not the scanner's compliance score.",
   };
 }
 
@@ -192,7 +228,7 @@ function App() {
           <div className="panel-head"><div className="panel-title"><span className="panel-icon"><FileCode2 size={17}/></span><div><h2>Manifest input</h2><p>Paste YAML or upload a file</p></div></div><div className="file-pill"><i/> {fileName || "deployment.yaml"}</div></div>
           <div className="editor-toolbar"><span><b>Y</b> YAML</span><div className="editor-tools"><button onClick={() => { setYaml(SAMPLE); setFileName(""); setAnalysis(null); setError(""); }}><RotateCcw size={13}/> Risky sample</button><button onClick={() => { setYaml(CLEAN_SAMPLE); setFileName(""); setAnalysis(null); setError(""); }}><CheckCircle2 size={13}/> Clean sample</button><button onClick={() => { setYaml(""); setFileName(""); setAnalysis(null); setError(""); }}><X size={13}/> Clear</button></div></div>
           <div className="code-wrap"><div className="line-numbers">{yaml.split("\n").map((_, i) => <span key={i}>{i + 1}</span>)}</div><textarea spellCheck={false} aria-label="Kubernetes YAML manifest" value={yaml} onChange={(e) => { setYaml(e.target.value); setAnalysis(null); setError(""); }} placeholder={"apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app"}/></div>
-          <div className="editor-bottom"><button onClick={() => fileRef.current?.click()}><Upload size={15}/> Upload YAML</button><input ref={fileRef} type="file" accept=".yaml,.yml,.sarif,.json,.txt,text/yaml,application/json,text/plain,application/x-yaml" hidden onChange={(e) => { const file = e.target.files?.[0]; loadFile(file); e.currentTarget.value = ""; }}/><span>{yaml.split("\n").length} lines · {new Blob([yaml]).size.toLocaleString()} bytes</span></div>
+          <div className="editor-bottom"><button onClick={() => fileRef.current?.click()}><Upload size={15}/> Upload YAML / SARIF</button><input ref={fileRef} type="file" accept=".yaml,.yml,.sarif,.json,.txt,text/yaml,application/json,text/plain,application/x-yaml" hidden onChange={(e) => { const file = e.target.files?.[0]; loadFile(file); e.currentTarget.value = ""; }}/><span>{yaml.split("\n").length} lines · {new Blob([yaml]).size.toLocaleString()} bytes</span></div>
           {error && <div className="error-banner"><AlertCircle size={16}/>{error}</div>}
           <button className="analyze-btn" onClick={run}><Play size={16} fill="currentColor"/> Analyze manifest <ArrowRight size={16}/></button>
           <div className="editor-footnote"><LockKeyhole size={12}/> Analysis runs locally in this browser. Your YAML is not uploaded.</div>
@@ -201,7 +237,7 @@ function App() {
           {!analysis ? <div className="empty-panel panel"><div className="empty-illustration"><div><ShieldCheck size={34}/></div><i/><b/></div><div className="empty-copy"><span className="eyebrow">WAITING FOR INPUT</span><h2>Your deployment review starts here.</h2><p>Run an analysis to see a risk score, prioritized findings and recommendations tied to exact manifest paths.</p></div><div className="empty-steps"><div><span>01</span><p><strong>Provide a manifest</strong><small>Paste YAML or upload a file</small></p></div><div><span>02</span><p><strong>Run the checks</strong><small>Deterministic rules, no AI guesswork</small></p></div><div><span>03</span><p><strong>Review the findings</strong><small>Prioritize before deployment</small></p></div></div></div> :
             <>
               <div className="score-panel panel"><div className="score-head"><div><span className="eyebrow">DEPLOYMENT RISK</span><h2>Readiness overview</h2></div><button className="download-btn" onClick={exportReport}><ArrowDownToLine size={14}/> Export report</button></div>
-                <div className="score-content"><div className={"score-ring " + analysis.risk_level} style={{ "--score": (analysis.risk_score * 3.6) + "deg" } as React.CSSProperties}><div><strong>{analysis.risk_score}</strong><small>/ 100</small></div></div><div className="score-description"><span className={"risk-label " + analysis.risk_level}>{analysis.risk_level.toUpperCase()} RISK</span><h3>{analysis.risk_score === 0 ? "No configured risks found" : analysis.risk_score >= 60 ? "Needs attention before release" : analysis.risk_score >= 35 ? "Review before deployment" : "Some improvements recommended"}</h3><p>{analysis.summary.workloads_analyzed} workload(s) analyzed · {analysis.summary.findings} finding(s) detected</p></div></div>
+                <div className="score-content"><div className={"score-ring " + analysis.risk_level} style={{ "--score": (analysis.risk_score * 3.6) + "deg" } as React.CSSProperties}><div><strong>{analysis.risk_score}</strong><small>/ 100</small></div></div><div className="score-description"><span className={"risk-label " + analysis.risk_level}>{analysis.risk_level.toUpperCase()} RISK</span><h3>{analysis.risk_score === 0 ? "No configured risks found" : analysis.risk_score >= 60 ? "Needs attention before release" : analysis.risk_score >= 35 ? "Review before deployment" : "Some improvements recommended"}</h3><p>{analysis.source === "sarif" ? `${analysis.summary.workloads_analyzed} manifest file(s) with findings` : `${analysis.summary.workloads_analyzed} workload(s) analyzed`} · {analysis.summary.findings} finding(s) detected</p></div></div>
                 <div className="severity-row">{(["critical", "high", "medium", "low"] as Severity[]).map((level) => <button key={level} className={"severity-stat " + level + (filter === level ? " chosen" : "")} onClick={() => setFilter(filter === level ? "all" : level)}><span>{analysis.summary.by_severity[level]}</span><small>{level}</small></button>)}</div>
               </div>
               <div className="findings-panel panel"><div className="findings-head"><div><h2>Findings <span>{visible.length}</span></h2><p>Prioritized checks with actionable context</p></div><button className="filter-btn" onClick={() => setFilter("all")}>All findings <ChevronDown size={13}/></button></div>
