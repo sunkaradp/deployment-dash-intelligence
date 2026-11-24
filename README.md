@@ -99,6 +99,25 @@ The score is the capped sum of explicit rule weights. Severity and recommendatio
 - Do not upload secrets or production credentials.
 - Validate recommendations against workload requirements before applying changes.
 
+
+## Security, privacy, and responsible use
+
+Read these documents before using, contributing to, or deploying the project:
+
+- [Security policy](SECURITY.md) — how to report vulnerabilities privately.
+- [Threat model](THREAT_MODEL.md) — assets, trust boundaries, threats, and mitigations.
+- [Security architecture](docs/SECURITY-ARCHITECTURE.md) — input handling and deployment boundaries.
+- [Product limitations](docs/LIMITATIONS.md) — supported scope and what findings do not prove.
+- [Contributing guide](CONTRIBUTING.md) — development and pull request expectations.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — community expectations.
+- [Public release checklist](docs/RELEASE-CHECKLIST.md) — mandatory release gates.
+
+**Important:** The optional FastAPI endpoint currently has no authentication, authorization, or rate limiting. Keep it local or on a trusted private network; do not expose it to the public internet. Do not upload secrets, kubeconfigs, private keys, customer manifests, or production data to the public demo. The browser workflow is intended to process files locally, but verify network behavior before relying on that property for sensitive data.
+
+## License status
+
+No open-source license has been selected yet. Until an explicit license is added, do not assume that this repository grants permission to reuse, redistribute, or create derivative works. See [Contributing](CONTRIBUTING.md).
+
 ## Development status
 
 This is an actively developed MVP. Verify the latest GitHub Actions runs and the Pages deployment before treating the public demo as live and fully tested.
