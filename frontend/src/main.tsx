@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { loadAll } from "js-yaml";
-import { Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, ChevronDown, Clipboard, FileCode2, Github, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
+import { Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, Github, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
 import "./styles.css";
 
 type Severity = "critical" | "high" | "medium" | "low";
