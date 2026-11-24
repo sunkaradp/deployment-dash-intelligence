@@ -120,7 +120,14 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                 ))
 
             image = container.get("image")
-            if isinstance(image, str) and (":" not in image.rsplit("/", 1)[-1] or image.endswith(":latest")):
+            if not isinstance(image, str) or not image.strip():
+                findings.append(Finding(
+                    "MISSING_CONTAINER_IMAGE", "high", "Container image missing",
+                    "The container does not define an image reference, so the workload cannot be deployed as written.",
+                    f"{path}.image",
+                    "Set the container image to a valid registry reference and prefer an immutable digest for release workloads.", 15,
+                ))
+            elif ":" not in image.rsplit("/", 1)[-1] or image.endswith(":latest"):
                 findings.append(Finding(
                     "MUTABLE_IMAGE_TAG", "medium", "Image tag may be mutable",
                     "The image reference does not pin a specific version or digest.",
