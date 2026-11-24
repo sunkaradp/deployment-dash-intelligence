@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Detect Kubernetes manifests
         id: manifests
@@ -60,7 +60,7 @@ jobs:
       - name: Scan manifests with Kubescape
         id: scan
         if: steps.manifests.outputs.found == 'true'
-        uses: kubescape/github-action@main
+        uses: kubescape/github-action@0e5b202e9e3d32623bb0449eb90220b06f583f49 # main snapshot; review before updating
         continue-on-error: true
         with:
           format: sarif
@@ -70,7 +70,7 @@ jobs:
       # Preserve the original SARIF before Code Scanning processes it.
       - name: Keep SARIF report as a downloadable artifact
         if: always() && steps.manifests.outputs.found == 'true' && hashFiles('kubescape-results.sarif') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kubescape-sarif-report
           path: kubescape-results.sarif
@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload findings to GitHub Code Scanning
         if: always() && steps.manifests.outputs.found == 'true' && hashFiles('kubescape-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@915412ff23e8b7659517e607487dbeae018f2934 # v4
         with:
           sarif_file: kubescape-results.sarif
           category: kubescape-manifest-scan
