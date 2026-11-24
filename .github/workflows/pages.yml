@@ -36,7 +36,7 @@ jobs:
         working-directory: frontend
         run: npm run build
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: frontend/dist
   deploy:
