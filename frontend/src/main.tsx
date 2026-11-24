@@ -73,7 +73,7 @@ function analyzeYaml(source: string): Analysis {
       if (security.allowPrivilegeEscalation === true) findings.push(makeFinding("PRIVILEGE_ESCALATION_ALLOWED", "high", "Privilege escalation allowed", "The container explicitly allows processes to gain more privileges.", path + ".securityContext.allowPrivilegeEscalation", "Set allowPrivilegeEscalation to false where compatible."));
       const runAsNonRoot = security.runAsNonRoot ?? podSecurity.runAsNonRoot;
       if (runAsNonRoot !== true) {
-        const nonRootPath = Object.prototype.hasOwnProperty.call(containerSecurity, "runAsNonRoot") ? path + ".securityContext.runAsNonRoot" : base + "." + podPath + ".securityContext.runAsNonRoot";
+        const nonRootPath = Object.prototype.hasOwnProperty.call(security, "runAsNonRoot") ? path + ".securityContext.runAsNonRoot" : base + "." + podPath + ".securityContext.runAsNonRoot";
         findings.push(makeFinding("RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced", "Neither the pod nor this container enforces non-root execution.", nonRootPath, "Set runAsNonRoot to true at pod or container level and configure a non-zero runAsUser if needed."));
       }
     });
