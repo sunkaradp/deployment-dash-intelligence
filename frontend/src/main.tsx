@@ -65,10 +65,15 @@ function analyzeYaml(source: string): Analysis {
           findings.push(makeFinding(rule, "low", probe + " missing", "No " + probe + " is configured for this container.", path + "." + probe, "Add an appropriate probe if the application exposes a reliable health signal."));
         }
       });
-      const security = obj(container.securityContext);
+      const podSecurity = obj(pod.securityContext);
+      const containerSecurity = obj(container.securityContext);
+      const security = { ...podSecurity, ...containerSecurity };
       if (security.privileged === true) findings.push(makeFinding("PRIVILEGED_CONTAINER", "critical", "Privileged container", "Privileged containers receive extended host-level capabilities.", path + ".securityContext.privileged", "Remove privileged mode unless a documented, reviewed requirement exists."));
       if (security.allowPrivilegeEscalation === true) findings.push(makeFinding("PRIVILEGE_ESCALATION_ALLOWED", "high", "Privilege escalation allowed", "The container explicitly allows processes to gain more privileges.", path + ".securityContext.allowPrivilegeEscalation", "Set allowPrivilegeEscalation to false where compatible."));
-      if (security.runAsNonRoot !== true) findings.push(makeFinding("RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced", "The container security context does not enforce a non-root user.", path + ".securityContext.runAsNonRoot", "Set runAsNonRoot to true and configure a non-zero runAsUser if needed."));
+      if (security.runAsNonRoot !== true) {
+        const nonRootPath = Object.prototype.hasOwnProperty.call(containerSecurity, "runAsNonRoot") ? path + ".securityContext.runAsNonRoot" : base + "." + podPath + ".securityContext.runAsNonRoot";
+        findings.push(makeFinding("RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced", "Neither the pod nor this container enforces non-root execution.", nonRootPath, "Set runAsNonRoot to true at pod or container level and configure a non-zero runAsUser if needed."));
+      }
     });
     if (pod.hostNetwork === true) findings.push(makeFinding("HOST_NETWORK_ENABLED", "high", "Host networking enabled", "The pod shares the host network namespace.", base + "." + podPath + ".hostNetwork", "Disable host networking unless the workload has a reviewed need for it."));
     findings.slice(findingStart).forEach((finding) => {
