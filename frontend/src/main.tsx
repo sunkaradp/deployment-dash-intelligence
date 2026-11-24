@@ -13,7 +13,6 @@ const CLEAN_SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: 
 const WEIGHTS = { WORKLOAD_NO_CONTAINERS: 25, MISSING_CONTAINER_IMAGE: 15, SINGLE_REPLICA: 10, MISSING_RESOURCE_REQUESTS: 8, MISSING_MEMORY_LIMIT: 8, MUTABLE_IMAGE_TAG: 7, MISSING_READINESSPROBE: 4, MISSING_LIVENESSPROBE: 4, PRIVILEGED_CONTAINER: 25, PRIVILEGE_ESCALATION_ALLOWED: 15, PRIVILEGE_ESCALATION_NOT_DISABLED: 8, RUN_AS_NON_ROOT_NOT_SET: 8, RUN_AS_ROOT: 15, READ_ONLY_ROOT_FILESYSTEM_NOT_SET: 4, ALL_CAPABILITIES_ADDED: 25, ALL_CAPABILITIES_NOT_DROPPED: 8, SECCOMP_PROFILE_NOT_SET: 8, HOST_PID_ENABLED: 15, HOST_IPC_ENABLED: 15, SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED: 8, HOST_PATH_VOLUME: 15, HOST_PORT_EXPOSED: 8, HOST_NETWORK_ENABLED: 15 };
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
 function pathObject(value: unknown, path: string): Record<string, any> { let current: unknown = value; path.split(".").forEach((part) => { current = obj(current)[part]; }); return obj(current); }
-function podSecurityProfile(pod: Record<string, any>): Record<string, any> { return obj(obj(pod.securityContext).seccompProfile); }
 function makeFinding(rule: keyof typeof WEIGHTS, severity: Severity, title: string, message: string, path: string, recommendation: string): Finding { return { rule_id: rule, severity, title, message, path, recommendation, points: WEIGHTS[rule] }; }
 
 function analyzeYaml(source: string): Analysis {
