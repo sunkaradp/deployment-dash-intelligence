@@ -208,6 +208,20 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                     "Set readOnlyRootFilesystem to true where the application can write to mounted volumes or temporary storage instead.", 4,
                 ))
 
+            effective_seccomp = _mapping(security.get("seccompProfile") or pod_security.get("seccompProfile"))
+            if effective_seccomp.get("type") not in {"RuntimeDefault", "Localhost"}:
+                seccomp_path = (
+                    f"{path}.securityContext.seccompProfile"
+                    if "seccompProfile" in security
+                    else f"{base}.{_container_path(kind)}.securityContext.seccompProfile"
+                )
+                findings.append(Finding(
+                    "SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit",
+                    "Neither the pod nor this container selects RuntimeDefault or a Localhost seccomp profile.",
+                    seccomp_path,
+                    "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile.", 8,
+                ))
+
             capabilities = _mapping(security.get("capabilities"))
             added_capabilities = capabilities.get("add", [])
             dropped_capabilities = capabilities.get("drop", [])
@@ -235,14 +249,6 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                 ))
 
         pod_security = _mapping(pod_spec.get("securityContext"))
-        seccomp = _mapping(pod_security.get("seccompProfile"))
-        if seccomp.get("type") not in {"RuntimeDefault", "Localhost"}:
-            findings.append(Finding(
-                "SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit",
-                "The pod does not explicitly select RuntimeDefault or a Localhost seccomp profile.",
-                f"{base}.{_container_path(kind)}.securityContext.seccompProfile",
-                "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile.", 8,
-            ))
 
         for namespace_field, rule_id, title in (
             ("hostPID", "HOST_PID_ENABLED", "Host PID namespace enabled"),
