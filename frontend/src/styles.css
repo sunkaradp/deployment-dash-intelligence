@@ -2,3 +2,91 @@
 @media(max-width:1120px){.main-area{padding:0 24px 22px}.workspace-grid{grid-template-columns:minmax(350px,.95fr) minmax(350px,1.05fr)}.sidebar{width:210px}.main-area{margin-left:210px}.page-intro h1{font-size:28px}}
 @media(max-width:850px){.sidebar{width:62px;padding:20px 9px}.brand{padding:0 3px 36px}.brand>span:last-child,.side-label,.side-item:not(.active),.side-item.active{font-size:0}.side-item{justify-content:center;padding:0}.side-item.active i,.sidebar-foot{display:none}.main-area{margin-left:62px;padding:0 16px 20px}.workspace-grid{grid-template-columns:1fr}.results-column{grid-row:2}.empty-panel{min-height:400px}.code-wrap{height:400px}.page-intro{align-items:flex-start;flex-direction:column}.intro-note{margin:0}.page-footer{flex-direction:column;align-items:flex-start}}
 @media(max-width:520px){.main-area{padding:0 10px 16px}.topbar{height:55px}.privacy{display:none}.page-intro{padding:25px 0 20px}.page-intro h1{font-size:26px}.workspace-grid{gap:12px}.panel-head{padding:0 11px}.editor-tools{gap:7px}.editor-tools button{font-size:8px}.editor-tools button svg{display:none}.file-pill{font-size:8px}.code-wrap{height:370px}.score-panel{padding:14px 12px}.score-content{gap:12px}.score-ring{width:84px;height:84px}.score-description h3{font-size:11px}.severity-row{gap:4px}.severity-stat{padding:7px 6px}.finding-item{padding:10px}.severity-tag{font-size:7px}.finding-main small{max-width:160px}.page-footer{font-size:8px}}
+
+
+/* Responsive workspace refinements */
+@media (max-width: 720px) {
+  .app-shell { min-height: 100dvh; }
+  .sidebar {
+    position: sticky;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 62px;
+    padding: 0 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 10px #111b2718;
+  }
+  .brand { flex: 0 0 auto; padding: 0; gap: 8px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand > span:last-child { display: block; }
+  .brand strong { font-size: 15px; }
+  .brand small { font-size: 7px; }
+  .side-label, .side-item:not(.active), .sidebar-foot { display: none !important; }
+  .side-item.active {
+    display: flex;
+    width: auto;
+    height: 34px;
+    margin: 0 0 0 auto;
+    padding: 0 11px;
+    gap: 7px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .side-item.active i { display: none; }
+  .main-area { margin-left: 0; padding: 0 16px 22px; width: 100%; }
+  .topbar { height: 54px; gap: 8px; }
+  .breadcrumb { min-width: 0; font-size: 10px; }
+  .breadcrumb strong { white-space: nowrap; }
+  .top-actions { gap: 10px; }
+  .privacy { display: none; }
+  .page-intro { padding: 25px 0 20px; align-items: flex-start; flex-direction: column; gap: 15px; }
+  .page-intro h1 { font-size: clamp(25px, 6vw, 32px); }
+  .page-intro p { max-width: 100%; font-size: 12px; }
+  .intro-note { margin: 0; }
+  .workspace-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .editor-panel, .results-column, .panel { min-width: 0; width: 100%; }
+  .results-column { grid-row: auto; }
+  .panel-head { min-width: 0; padding: 0 12px; gap: 8px; }
+  .panel-title { min-width: 0; }
+  .file-pill { max-width: 44%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .editor-toolbar { padding: 0 11px; gap: 8px; }
+  .editor-tools { min-width: 0; gap: 9px; }
+  .editor-tools button { white-space: nowrap; font-size: 8px; }
+  .editor-tools button svg { display: none; }
+  .code-wrap { width: 100%; height: min(56vh, 440px); min-height: 270px; overflow: auto; }
+  .line-numbers { position: sticky; left: 0; z-index: 1; flex: 0 0 38px; }
+  .code-wrap textarea {
+    display: block;
+    flex: 1 0 0;
+    min-width: 0;
+    width: 0;
+    overflow: auto;
+    resize: vertical;
+    font-size: 11px;
+    line-height: 20px;
+    padding: 13px 10px;
+  }
+  .editor-bottom { padding: 0 11px; }
+  .analyze-btn { width: calc(100% - 22px); margin-left: 11px; margin-right: 11px; }
+  .empty-panel { min-height: 0; padding: 30px 20px 22px; }
+  .score-panel { padding: 15px 13px; }
+  .findings-head { padding: 13px; }
+  .finding-item { gap: 8px; padding: 10px 11px; }
+  .finding-main small { max-width: min(42vw, 260px); }
+  .page-footer { flex-direction: column; align-items: flex-start; padding-top: 15px; }
+}
+@media (max-width: 390px) {
+  .sidebar { padding: 0 10px; }
+  .brand { gap: 6px; }
+  .brand strong { font-size: 13px; }
+  .brand small { letter-spacing: 1.4px; }
+  .side-item.active { padding: 0 8px; font-size: 10px; }
+  .main-area { padding-left: 10px; padding-right: 10px; }
+  .editor-tools { gap: 7px; }
+  .editor-tools button { font-size: 7px; }
+  .file-pill { max-width: 40%; }
+  .severity-row { gap: 4px; }
+  .severity-stat { padding: 7px 5px; }
+}
