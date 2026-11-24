@@ -94,3 +94,13 @@
 .score-disclaimer{font-size:9px;line-height:1.5;color:#8995a0;margin:11px 2px 0;padding-top:9px;border-top:1px solid #edf0f2}.control-link{display:inline-flex;align-items:center;gap:5px;margin-top:9px;color:#28785e;font-size:9px;font-weight:700;text-decoration:none}.control-link:hover{text-decoration:underline}
 
 .finding-filters{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:7px;padding:10px 12px;border-bottom:1px solid #edf0f2;background:#fbfcfc}.finding-filters input,.finding-filters select{min-width:0;width:100%;height:32px;border:1px solid #e3e8ed;border-radius:5px;background:#fff;padding:0 8px;color:#536273;font:9px ui-sans-serif,system-ui;outline:none}.finding-filters input:focus,.finding-filters select:focus{border-color:#82b8a1;box-shadow:0 0 0 2px #e9f4ee}.resource-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:0 0 10px}.resource-meta span{min-width:0;display:flex;flex-direction:column;gap:4px;padding:8px;background:#f3f6f6;border-radius:5px;color:#596976;font-size:9px;overflow-wrap:anywhere}.resource-meta b{font-size:8px;letter-spacing:.5px;text-transform:uppercase;color:#8b98a1}@media(max-width:520px){.finding-filters{grid-template-columns:1fr 1fr}.finding-filters input{grid-column:1/-1}.resource-meta{grid-template-columns:1fr 1fr}}
+
+/* Active filter clarity */
+.filter-btn:disabled{opacity:.42;cursor:not-allowed;background:#f8fafb}
+.active-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:9px 12px;border-bottom:1px solid #edf0f2;background:#f8faf9}
+.active-filter-label{font-size:8px;letter-spacing:.9px;font-weight:800;color:#84918d;margin-right:2px}
+.filter-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;border:1px solid #d9e8df;border-radius:999px;background:#edf6f1;color:#356e59;padding:5px 8px;font-size:9px;cursor:pointer}
+.filter-chip:hover{background:#e3f1e9;border-color:#b8d7c5}
+.clear-filter-link{border:0;background:transparent;color:#64766c;font-size:9px;font-weight:700;padding:5px 3px;cursor:pointer}
+.clear-filter-link:hover{color:#176b57;text-decoration:underline}
+@media(max-width:520px){.active-filter-bar{gap:6px;padding:9px 10px}.active-filter-label{width:100%}.filter-chip{font-size:8px}.clear-filter-link{font-size:8px}}
