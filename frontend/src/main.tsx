@@ -29,12 +29,19 @@ function analyzeYaml(source: string): Analysis {
     const kind = String(resource.kind || "");
     if (!supported.includes(kind)) { ignored += 1; return; }
     analyzed += 1;
+    const findingStart = findings.length;
     const base = "documents[" + index + "]";
+    const workloadName = String(obj(resource.metadata).name || "name not set");
+    const namespace = String(obj(resource.metadata).namespace || "");
+    const workloadIdentity = kind + "/" + workloadName;
     const podPath = kind === "CronJob" ? "spec.jobTemplate.spec.template.spec" : "spec.template.spec";
     const pod = pathObject(resource, podPath);
     const containers = Array.isArray(pod.containers) ? pod.containers.map(obj) : [];
     if (!containers.length) {
-      findings.push(makeFinding("WORKLOAD_NO_CONTAINERS", "high", "No containers defined", "The workload pod template has no valid containers.", base, "Define at least one container in the pod template."));
+      const finding = makeFinding("WORKLOAD_NO_CONTAINERS", "high", "No containers defined", "The workload pod template has no valid containers.", base, "Define at least one container in the pod template.");
+      finding.resource = workloadIdentity;
+      finding.namespace = namespace || undefined;
+      findings.push(finding);
       return;
     }
     if (kind === "Deployment" || kind === "StatefulSet") {
@@ -64,6 +71,15 @@ function analyzeYaml(source: string): Analysis {
       if (security.runAsNonRoot !== true) findings.push(makeFinding("RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced", "The container security context does not enforce a non-root user.", path + ".securityContext.runAsNonRoot", "Set runAsNonRoot to true and configure a non-zero runAsUser if needed."));
     });
     if (pod.hostNetwork === true) findings.push(makeFinding("HOST_NETWORK_ENABLED", "high", "Host networking enabled", "The pod shares the host network namespace.", base + "." + podPath + ".hostNetwork", "Disable host networking unless the workload has a reviewed need for it."));
+    findings.slice(findingStart).forEach((finding) => {
+      finding.resource = workloadIdentity;
+      finding.namespace = namespace || undefined;
+      const containerIndexMatch = finding.path.match(/containers\[(\d+)\]/);
+      if (containerIndexMatch) {
+        const container = containers[Number(containerIndexMatch[1])];
+        if (container && typeof container.name === "string") finding.container = container.name;
+      }
+    });
   });
   if (!analyzed) throw new Error("No supported workload found. Supported kinds: Deployment, StatefulSet, DaemonSet, Job and CronJob.");
   const score = Math.min(100, findings.reduce((sum, item) => sum + item.points, 0));
