@@ -20,6 +20,11 @@ spec:
       labels:
         app: web
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: web
           image: example.com/web:1.2.3
@@ -41,6 +46,10 @@ spec:
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
 """
 
 
@@ -206,3 +215,84 @@ spec:
     finding = next(item for item in result["findings"] if item["rule_id"] == "MISSING_CONTAINER_IMAGE")
     assert finding["severity"] == "high"
     assert finding["path"].endswith("containers[0].image")
+
+
+def test_security_posture_rules_cover_host_access_and_linux_privileges():
+    result = analyze_documents("""
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unsafe-host-access
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: unsafe-host-access
+  template:
+    metadata:
+      labels:
+        app: unsafe-host-access
+    spec:
+      hostPID: true
+      hostIPC: true
+      automountServiceAccountToken: true
+      volumes:
+        - name: host-logs
+          hostPath:
+            path: /var/log
+      containers:
+        - name: app
+          image: example.com/app:1.0.0
+          ports:
+            - containerPort: 8080
+              hostPort: 8080
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - ALL
+""")
+    rule_ids = {item["rule_id"] for item in result["findings"]}
+    assert {
+        "HOST_PID_ENABLED",
+        "HOST_IPC_ENABLED",
+        "SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED",
+        "HOST_PATH_VOLUME",
+        "HOST_PORT_EXPOSED",
+        "RUN_AS_ROOT",
+        "ALL_CAPABILITIES_ADDED",
+        "ALL_CAPABILITIES_NOT_DROPPED",
+        "SECCOMP_PROFILE_NOT_SET",
+    }.issubset(rule_ids)
+
+
+def test_cronjob_security_context_is_checked():
+    result = analyze_documents("""
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: worker
+              image: example.com/worker:1.0.0
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+          restartPolicy: OnFailure
+""")
+    assert result["summary"]["workloads_analyzed"] == 1
+    assert "RUN_AS_ROOT" not in {item["rule_id"] for item in result["findings"]}
