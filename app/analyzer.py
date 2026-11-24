@@ -137,7 +137,9 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                         "Add an appropriate probe if the application exposes a reliable health signal.", 4,
                     ))
 
-            security = _mapping(container.get("securityContext"))
+            pod_security = _mapping(pod_spec.get("securityContext"))
+            container_security = _mapping(container.get("securityContext"))
+            security = {**pod_security, **container_security}
             if security.get("privileged") is True:
                 findings.append(Finding(
                     "PRIVILEGED_CONTAINER", "critical", "Privileged container",
