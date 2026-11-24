@@ -5,7 +5,7 @@ import { Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, Chec
 import "./styles.css";
 
 type Severity = "critical" | "high" | "medium" | "low";
-type Finding = { rule_id: string; severity: Severity; title: string; message: string; path: string; recommendation: string; help_uri?: string; points: number };
+type Finding = { rule_id: string; severity: Severity; title: string; message: string; path: string; recommendation: string; help_uri?: string; resource?: string; container?: string; namespace?: string; points: number };
 type Analysis = { source: "yaml" | "sarif"; scanner_name?: string; risk_score: number; risk_level: Severity; summary: { workloads_analyzed: number; documents_ignored: number; findings: number; by_severity: Record<Severity, number> }; findings: Finding[]; disclaimer: string };
 
 const SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      hostNetwork: true\n      containers:\n        - name: api\n          image: example.com/payments-api:latest\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"100m\"\n            limits:\n              cpu: \"500m\"\n          securityContext:\n            privileged: true\n            allowPrivilegeEscalation: true\n";
@@ -124,6 +124,12 @@ function analysisFromSarif(raw: unknown): Analysis {
       seen.add(key);
       manifestsWithFindings.add(uri);
 
+      const affectedText = message + "\\n" + String(resultProperties.affectedResources || resultProperties.affectedFields || "");
+      const containerMatch = affectedText.match(/\\(([^()]+)\\)/);
+      const container = containerMatch?.[1];
+      const resourceFromProps = String(resultProperties.resourceName || resultProperties.resource || resultProperties.workload || "");
+      const resource = resourceFromProps || (container ? "Container: " + container : "Workload not specified");
+      const namespace = String(resultProperties.namespace || "");
       const title = String(
         obj(descriptor.shortDescription).text ||
         obj(result.message).text ||
@@ -143,6 +149,9 @@ function analysisFromSarif(raw: unknown): Analysis {
         path,
         recommendation: helpText,
         help_uri: typeof descriptor.helpUri === "string" ? descriptor.helpUri : undefined,
+        resource,
+        container,
+        namespace: namespace || undefined,
         points: severity === "critical" ? 25 : severity === "high" ? 15 : severity === "medium" ? 8 : 4,
       });
     }
@@ -169,10 +178,15 @@ function App() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Severity | "all">("all");
+  const [search, setSearch] = useState("");
+  const [resourceFilter, setResourceFilter] = useState("all");
+  const [ruleFilter, setRuleFilter] = useState("all");
   const [selected, setSelected] = useState("");
   const [fileName, setFileName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const visible = useMemo(() => analysis ? analysis.findings.filter((item) => filter === "all" || item.severity === filter) : [], [analysis, filter]);
+  const visible = useMemo(() => analysis ? analysis.findings.filter((item) => (filter === "all" || item.severity === filter) && (resourceFilter === "all" || item.resource === resourceFilter) && (ruleFilter === "all" || item.rule_id === ruleFilter) && (!search.trim() || [item.title,item.message,item.path,item.rule_id,item.resource,item.container,item.namespace].join(" ").toLowerCase().includes(search.trim().toLowerCase()))) : [], [analysis, filter, resourceFilter, ruleFilter, search]);
+  const resources = useMemo(() => analysis ? Array.from(new Set(analysis.findings.map((item) => item.resource || "Workload not specified"))) : [], [analysis]);
+  const rules = useMemo(() => analysis ? Array.from(new Set(analysis.findings.map((item) => item.rule_id))) : [], [analysis]);
   const selectedFinding = visible.find((item) => item.rule_id + item.path === selected) || visible[0];
   function run() {
     try { const result = analyzeYaml(yaml); setAnalysis(result); setError(""); setFilter("all"); setSelected(result.findings[0] ? result.findings[0].rule_id + result.findings[0].path : ""); }
@@ -242,10 +256,10 @@ function App() {
                 <div className="score-content"><div className={"score-ring " + analysis.risk_level} style={{ "--score": (analysis.risk_score * 3.6) + "deg" } as React.CSSProperties}><div><strong>{analysis.risk_score}</strong><small>/ 100</small></div></div><div className="score-description"><span className={"risk-label " + analysis.risk_level}>{analysis.risk_level.toUpperCase()} RISK</span><h3>{analysis.source === "sarif" ? `${analysis.scanner_name || "Scanner"} findings imported` : analysis.risk_score === 0 ? "No configured risks found" : analysis.risk_score >= 60 ? "Needs attention before release" : analysis.risk_score >= 35 ? "Review before deployment" : "Some improvements recommended"}</h3><p>{analysis.source === "sarif" ? `${analysis.summary.workloads_analyzed} manifest file(s) with findings` : `${analysis.summary.workloads_analyzed} workload(s) analyzed`} · {analysis.summary.findings} finding(s) detected</p></div></div>
                 <div className="severity-row">{(["critical", "high", "medium", "low"] as Severity[]).map((level) => <button key={level} className={"severity-stat " + level + (filter === level ? " chosen" : "")} onClick={() => setFilter(filter === level ? "all" : level)}><span>{analysis.summary.by_severity[level]}</span><small>{level}</small></button>)}</div>{analysis.source === "sarif" && <p className="score-disclaimer">Scanner severities above are preserved for display. The {analysis.risk_score}/100 indicator is a local weighted heuristic, not the scanner\u2019s score or a compliance rating.</p>}
               </div>
-              <div className="findings-panel panel"><div className="findings-head"><div><h2>Findings <span>{visible.length}</span></h2><p>Prioritized checks with actionable context</p></div><button className="filter-btn" onClick={() => setFilter("all")}>All findings <ChevronDown size={13}/></button></div>
+              <div className="findings-panel panel"><div className="findings-head"><div><h2>Findings <span>{visible.length} / {analysis.findings.length}</span></h2><p>Search and filter scanner results by severity, resource or control</p></div><button className="filter-btn" onClick={() => { setFilter("all"); setResourceFilter("all"); setRuleFilter("all"); setSearch(""); }}>Reset filters <RotateCcw size={12}/></button></div><div className="finding-filters"><input aria-label="Search findings" placeholder="Search title, path, message…" value={search} onChange={(e) => setSearch(e.target.value)}/><select aria-label="Filter by resource" value={resourceFilter} onChange={(e) => setResourceFilter(e.target.value)}><option value="all">All resources</option>{resources.map((item) => <option key={item} value={item}>{item}</option>)}</select><select aria-label="Filter by control" value={ruleFilter} onChange={(e) => setRuleFilter(e.target.value)}><option value="all">All controls</option>{rules.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
                 {visible.length === 0 ? <div className="no-findings"><CheckCircle2 size={22}/><strong>No findings in this category</strong><span>Nothing to review here.</span></div> :
-                  <div className="finding-list">{visible.map((item) => <button key={item.rule_id + item.path} className={"finding-item " + (selectedFinding === item ? "selected" : "")} onClick={() => setSelected(item.rule_id + item.path)}><span className={"finding-symbol " + item.severity}>{item.severity === "critical" || item.severity === "high" ? <AlertTriangle size={15}/> : <Info size={15}/>}</span><span className="finding-main"><strong>{item.title}</strong><small>{item.path}</small></span><span className={"severity-tag " + item.severity}>{item.severity}</span><ArrowRight size={14} className="finding-arrow"/></button>)}</div>}
-                {selectedFinding && <div className="finding-detail"><div className="detail-top"><span>SELECTED FINDING</span><code>{selectedFinding.rule_id}</code></div><h3>{selectedFinding.title}</h3><p>{selectedFinding.message}</p><div className="detail-path"><Terminal size={13}/><code>{selectedFinding.path}</code><button title="Copy path" onClick={() => navigator.clipboard?.writeText(selectedFinding.path)}><Clipboard size={13}/></button></div><div className="recommendation"><span><Sparkles size={14}/> RECOMMENDATION</span><p>{selectedFinding.recommendation}</p>{selectedFinding.help_uri && <a className="control-link" href={selectedFinding.help_uri} target="_blank" rel="noreferrer">Open scanner control documentation <ArrowRight size={12}/></a>}</div></div>}
+                  <div className="finding-list">{visible.map((item) => <button key={item.rule_id + item.path} className={"finding-item " + (selectedFinding === item ? "selected" : "")} onClick={() => setSelected(item.rule_id + item.path)}><span className={"finding-symbol " + item.severity}>{item.severity === "critical" || item.severity === "high" ? <AlertTriangle size={15}/> : <Info size={15}/>}</span><span className="finding-main"><strong>{item.title}</strong><small>{item.resource || "Resource not specified"}{item.container ? " · " + item.container : ""} · {item.path}</small></span><span className={"severity-tag " + item.severity}>{item.severity}</span><ArrowRight size={14} className="finding-arrow"/></button>)}</div>}
+                {selectedFinding && <div className="finding-detail"><div className="detail-top"><span>SELECTED FINDING</span><code>{selectedFinding.rule_id}</code></div><h3>{selectedFinding.title}</h3><p>{selectedFinding.message}</p><div className="resource-meta"><span><b>Resource</b>{selectedFinding.resource || "Not provided by scanner"}</span>{selectedFinding.container && <span><b>Container</b>{selectedFinding.container}</span>}<span><b>Namespace</b>{selectedFinding.namespace || "Not provided by scanner"}</span></div><div className="detail-path"><Terminal size={13}/><code>{selectedFinding.path}</code><button title="Copy path" onClick={() => navigator.clipboard?.writeText(selectedFinding.path)}><Clipboard size={13}/></button></div><div className="recommendation"><span><Sparkles size={14}/> RECOMMENDATION</span><p>{selectedFinding.recommendation}</p>{selectedFinding.help_uri && <a className="control-link" href={selectedFinding.help_uri} target="_blank" rel="noreferrer">Open scanner control documentation <ArrowRight size={12}/></a>}</div></div>}
               </div>
             </>}
         </div>
