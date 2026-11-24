@@ -4,7 +4,7 @@ Deployment Dash Intelligence is an early-stage, manifest-focused advisory tool.
 
 ## What it does
 
-- Performs deterministic checks against supported Kubernetes workload manifests.
+- Performs deterministic checks against supported Kubernetes workload manifests.\n- Rejects duplicate YAML mapping keys and bounds input size, document count, alias count, nesting depth, and finding count.
 - Reviews selected configuration and container security-context settings.
 - Imports local Kubescape SARIF/JSON reports for display.
 - Produces explainable findings with evidence paths and recommendations.
