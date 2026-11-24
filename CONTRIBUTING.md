@@ -50,4 +50,4 @@ Rules should be explainable and include a stable rule ID, severity, evidence pat
 
 ## Licensing
 
-A project license has not yet been selected. Until a license is added by the maintainer, do not assume that the repository grants permission to reuse, redistribute, or create derivative works. Contributions are not accepted under an implied open-source license.
+The project is licensed under Apache License 2.0. By intentionally submitting a contribution for inclusion, you agree that it is submitted under the terms of that license, subject to any separate written agreement you may have with the maintainer.
