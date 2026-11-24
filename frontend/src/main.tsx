@@ -89,9 +89,18 @@ function App() {
   }
   function loadFile(file?: File) {
     if (!file) return;
-    if (!/\\.(yaml|yml)$/i.test(file.name)) { setError("Choose a .yaml or .yml file."); return; }
     const reader = new FileReader();
-    reader.onload = () => { setYaml(String(reader.result || "")); setFileName(file.name); setAnalysis(null); setError(""); };
+    reader.onload = () => {
+      const content = String(reader.result || "");
+      if (content.includes("\u0000")) {
+        setError("This looks like a ZIP or binary file. Extract the ZIP first, then choose an individual .yaml file.");
+        return;
+      }
+      setYaml(content);
+      setFileName(file.name || "uploaded-manifest.yaml");
+      setAnalysis(null);
+      setError("");
+    };
     reader.onerror = () => setError("The selected file could not be read.");
     reader.readAsText(file);
   }
