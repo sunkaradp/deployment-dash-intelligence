@@ -21,6 +21,10 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
+      - name: Dependency vulnerability audit
+        run: |
+          python -m pip install pip-audit
+          pip-audit
       - name: Lint
         run: ruff check .
       - name: Test
@@ -42,5 +46,7 @@ jobs:
           cache-dependency-path: frontend/package.json
       - name: Install dependencies
         run: npm install
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=moderate
       - name: Build production bundle
         run: npm run build
