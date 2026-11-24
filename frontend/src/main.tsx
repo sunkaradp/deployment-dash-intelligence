@@ -8,6 +8,10 @@ type Severity = "critical" | "high" | "medium" | "low";
 type Finding = { rule_id: string; severity: Severity; title: string; message: string; path: string; recommendation: string; help_uri?: string; resource?: string; container?: string; namespace?: string; points: number };
 type Analysis = { source: "yaml" | "sarif"; scanner_name?: string; risk_score: number; risk_level: Severity; summary: { workloads_analyzed: number; documents_ignored: number; findings: number; by_severity: Record<Severity, number> }; findings: Finding[]; disclaimer: string };
 
+const MAX_INPUT_BYTES = 1_000_000;
+const MAX_DOCUMENTS = 100;
+const MAX_FINDINGS = 5_000;
+
 const SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      hostNetwork: true\n      containers:\n        - name: api\n          image: example.com/payments-api:latest\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"100m\"\n            limits:\n              cpu: \"500m\"\n          securityContext:\n            privileged: true\n            allowPrivilegeEscalation: true\n";
 const CLEAN_SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: storefront\n  namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: storefront\n  template:\n    metadata:\n      labels:\n        app: storefront\n    spec:\n      containers:\n        - name: web\n          image: ghcr.io/acme/storefront:2.4.1\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"200m\"\n              memory: \"256Mi\"\n            limits:\n              cpu: \"1\"\n              memory: \"512Mi\"\n          readinessProbe:\n            httpGet:\n              path: /ready\n              port: 8080\n          livenessProbe:\n            httpGet:\n              path: /health\n              port: 8080\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n";
 const WEIGHTS = { WORKLOAD_NO_CONTAINERS: 25, MISSING_CONTAINER_IMAGE: 15, SINGLE_REPLICA: 10, MISSING_RESOURCE_REQUESTS: 8, MISSING_MEMORY_LIMIT: 8, MUTABLE_IMAGE_TAG: 7, MISSING_READINESSPROBE: 4, MISSING_LIVENESSPROBE: 4, PRIVILEGED_CONTAINER: 25, PRIVILEGE_ESCALATION_ALLOWED: 15, PRIVILEGE_ESCALATION_NOT_DISABLED: 8, RUN_AS_NON_ROOT_NOT_SET: 8, RUN_AS_ROOT: 15, READ_ONLY_ROOT_FILESYSTEM_NOT_SET: 4, ALL_CAPABILITIES_ADDED: 25, ALL_CAPABILITIES_NOT_DROPPED: 8, SECCOMP_PROFILE_NOT_SET: 8, HOST_PID_ENABLED: 15, HOST_IPC_ENABLED: 15, SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED: 8, HOST_PATH_VOLUME: 15, HOST_PORT_EXPOSED: 8, HOST_NETWORK_ENABLED: 15 };
@@ -17,8 +21,16 @@ function makeFinding(rule: keyof typeof WEIGHTS, severity: Severity, title: stri
 
 function analyzeYaml(source: string): Analysis {
   if (!source.trim()) throw new Error("Paste or upload at least one Kubernetes YAML manifest.");
-  let docs: unknown[];
-  try { docs = loadAll(source) as unknown[]; } catch { throw new Error("The YAML could not be parsed. Check indentation, quotes and document separators."); }
+  if (new TextEncoder().encode(source).length > MAX_INPUT_BYTES) throw new Error("Input exceeds the 1 MB safety limit.");
+  const docs: unknown[] = [];
+  try {
+    loadAll(source, (document) => {
+      if (docs.length >= MAX_DOCUMENTS) throw new Error("Input exceeds the 100-document safety limit.");
+      docs.push(document);
+    }, { maxAliasCount: 50 });
+  } catch (err) {
+    throw new Error(err instanceof Error && /limit/.test(err.message) ? err.message : "The YAML could not be parsed. Check indentation, quotes and document separators.");
+  }
   const findings: Finding[] = [];
   let analyzed = 0;
   let ignored = 0;
@@ -101,6 +113,7 @@ function analyzeYaml(source: string): Analysis {
     if (pod.automountServiceAccountToken === true) findings.push(makeFinding("SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED", "medium", "Service account token automounted", "The pod explicitly requests an automatically mounted service account token.", base + "." + podPath + ".automountServiceAccountToken", "Disable token automounting when the workload does not need Kubernetes API access."));
     if (Array.isArray(pod.volumes)) pod.volumes.forEach((volumeValue: unknown, volumeIndex: number) => { if (obj(obj(volumeValue).hostPath).path) findings.push(makeFinding("HOST_PATH_VOLUME", "high", "Host path volume mounted", "The pod references a path on the node filesystem.", base + "." + podPath + ".volumes[" + volumeIndex + "].hostPath", "Avoid hostPath volumes where possible; use a narrowly scoped, read-only mount only when required and reviewed.")); });
     if (pod.hostNetwork === true) findings.push(makeFinding("HOST_NETWORK_ENABLED", "high", "Host networking enabled", "The pod shares the host network namespace.", base + "." + podPath + ".hostNetwork", "Disable host networking unless the workload has a reviewed need for it."));
+    if (findings.length > MAX_FINDINGS) throw new Error("Analysis exceeds the 5,000-finding safety limit.");
     findings.slice(findingStart).forEach((finding) => {
       finding.resource = workloadIdentity;
       finding.namespace = namespace || undefined;
@@ -128,6 +141,7 @@ function analysisFromSarif(raw: unknown): Analysis {
   const seen = new Set<string>();
   const manifestsWithFindings = new Set<string>();
 
+  let importedResultCount = 0;
   for (const runValue of runs) {
     const run = obj(runValue);
     const driver = obj(obj(run.tool).driver);
@@ -135,6 +149,8 @@ function analysisFromSarif(raw: unknown): Analysis {
     const results = Array.isArray(run.results) ? run.results : [];
 
     for (const item of results) {
+      importedResultCount += 1;
+      if (importedResultCount > MAX_FINDINGS) throw new Error("SARIF report exceeds the 5,000-result safety limit.");
       const result = obj(item);
       const ruleId = String(result.ruleId || "KUBESCAPE_FINDING");
       const ruleIndex = Number.isInteger(result.ruleIndex) ? Number(result.ruleIndex) : -1;
@@ -243,6 +259,10 @@ function App() {
   }
   function loadFile(file?: File) {
     if (!file) return;
+    if (file.size > MAX_INPUT_BYTES) {
+      setError("File exceeds the 1 MB safety limit. Split the report or use a smaller sample.");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const content = String(reader.result || "");
