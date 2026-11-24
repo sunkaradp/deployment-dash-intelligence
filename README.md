@@ -14,7 +14,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 
 - Browser-based YAML upload and editing.
 - Multi-document YAML parsing.
-- Checks for replica count, CPU/memory requests, memory limits, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution (including Pod-level `runAsNonRoot` inheritance), and host networking.
+- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution (including Pod-level `runAsNonRoot` inheritance), and host networking.
 - Finding severity, evidence path, and recommendation.
 - Optional FastAPI analysis endpoint.
 - Responsive React and TypeScript interface.
