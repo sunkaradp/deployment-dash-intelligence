@@ -13,13 +13,13 @@ The repository includes a FastAPI endpoint:
 - `GET /healthz`
 - `POST /api/v1/analyze`
 
-The request model limits the YAML string to 500,000 characters and the analyzer uses PyYAML's safe loader. These are useful baseline controls, not a complete abuse-resistance strategy.
+The request model limits the YAML string to 1,000,000 characters; the analyzer enforces a 1 MB UTF-8 byte limit, 100-document limit, 50-alias limit, 50-level composition depth, and 5,000-finding limit. The backend uses PyYAML's safe loader and rejects duplicate mapping keys. These are useful baseline controls, not a complete abuse-resistance strategy.
 
 The API currently has no authentication, authorization, rate limiting, request timeout policy, or tenant isolation. Do not expose it on a public network. A production service would additionally need transport security, identity and access controls, quotas, request and parser limits, safe logging, monitoring, and an operational response plan.
 
 ## Parsing and rendering
 
-Both browser and backend parsers process untrusted user input. Parser safety must be tested independently in both implementations. Add strict input byte limits, document-count limits, nesting/alias protections, and bounded result rendering. Never render user-controlled content as raw HTML.
+Both browser and backend parsers process untrusted user input. Parser safety must be tested independently in both implementations. The backend enforces strict input byte, document-count, nesting, alias, duplicate-key, and finding limits. The browser has separate limits and must be tested independently; do not assume backend controls protect local parsing. Never render user-controlled content as raw HTML.
 
 ## CI/CD
 
