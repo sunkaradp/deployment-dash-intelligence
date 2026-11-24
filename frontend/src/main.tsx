@@ -124,8 +124,8 @@ function analysisFromSarif(raw: unknown): Analysis {
       seen.add(key);
       manifestsWithFindings.add(uri);
 
-      const affectedText = message + "\\n" + String(resultProperties.affectedResources || resultProperties.affectedFields || "");
-      const containerMatch = affectedText.match(/\\(([^()]+)\\)/);
+      const affectedText = message + "\n" + String(resultProperties.affectedResources || resultProperties.affectedFields || "");
+      const containerMatch = affectedText.match(/\(([^()]+)\)/);
       const container = containerMatch?.[1];
       const resourceFromProps = String(resultProperties.resourceName || resultProperties.resource || resultProperties.workload || "");
       const resource = resourceFromProps || (container ? "Container: " + container : "Workload not specified");
@@ -189,7 +189,7 @@ function App() {
   const rules = useMemo(() => analysis ? Array.from(new Set(analysis.findings.map((item) => item.rule_id))) : [], [analysis]);
   const selectedFinding = visible.find((item) => item.rule_id + item.path === selected) || visible[0];
   function run() {
-    try { const result = analyzeYaml(yaml); setAnalysis(result); setError(""); setFilter("all"); setSelected(result.findings[0] ? result.findings[0].rule_id + result.findings[0].path : ""); }
+    try { const result = analyzeYaml(yaml); setAnalysis(result); setError(""); setFilter("all"); setSearch(""); setResourceFilter("all"); setRuleFilter("all"); setSelected(result.findings[0] ? result.findings[0].rule_id + result.findings[0].path : ""); }
     catch (err) { setAnalysis(null); setError(err instanceof Error ? err.message : "Analysis failed."); }
   }
   function loadFile(file?: File) {
@@ -206,10 +206,11 @@ function App() {
           const imported = analysisFromSarif(JSON.parse(content));
           setAnalysis(imported);
           setFilter("all");
+          setSearch(""); setResourceFilter("all"); setRuleFilter("all");
           setSelected(imported.findings[0] ? imported.findings[0].rule_id + imported.findings[0].path : "");
         } else {
           setYaml(content);
-          setAnalysis(null);
+          setAnalysis(null); setFilter("all"); setSearch(""); setResourceFilter("all"); setRuleFilter("all");
         }
         setFileName(file.name || "uploaded-manifest.yaml");
         setError("");
@@ -254,7 +255,7 @@ function App() {
             <>
               <div className="score-panel panel"><div className="score-head"><div><span className="eyebrow">{analysis.source === "sarif" ? "LOCAL WEIGHTED INDICATOR" : "DEPLOYMENT RISK"}</span><h2>{analysis.source === "sarif" ? "Imported scan overview" : "Readiness overview"}</h2></div><button className="download-btn" onClick={exportReport}><ArrowDownToLine size={14}/> Export report</button></div>
                 <div className="score-content"><div className={"score-ring " + analysis.risk_level} style={{ "--score": (analysis.risk_score * 3.6) + "deg" } as React.CSSProperties}><div><strong>{analysis.risk_score}</strong><small>/ 100</small></div></div><div className="score-description"><span className={"risk-label " + analysis.risk_level}>{analysis.risk_level.toUpperCase()} RISK</span><h3>{analysis.source === "sarif" ? `${analysis.scanner_name || "Scanner"} findings imported` : analysis.risk_score === 0 ? "No configured risks found" : analysis.risk_score >= 60 ? "Needs attention before release" : analysis.risk_score >= 35 ? "Review before deployment" : "Some improvements recommended"}</h3><p>{analysis.source === "sarif" ? `${analysis.summary.workloads_analyzed} manifest file(s) with findings` : `${analysis.summary.workloads_analyzed} workload(s) analyzed`} · {analysis.summary.findings} finding(s) detected</p></div></div>
-                <div className="severity-row">{(["critical", "high", "medium", "low"] as Severity[]).map((level) => <button key={level} className={"severity-stat " + level + (filter === level ? " chosen" : "")} onClick={() => setFilter(filter === level ? "all" : level)}><span>{analysis.summary.by_severity[level]}</span><small>{level}</small></button>)}</div>{analysis.source === "sarif" && <p className="score-disclaimer">Scanner severities above are preserved for display. The {analysis.risk_score}/100 indicator is a local weighted heuristic, not the scanner\u2019s score or a compliance rating.</p>}
+                <div className="severity-row"><button className={"severity-stat all " + (filter === "all" ? "chosen" : "")} onClick={() => setFilter("all")}><span>{analysis.summary.findings}</span><small>All</small></button>{(["critical", "high", "medium", "low"] as Severity[]).map((level) => <button key={level} className={"severity-stat " + level + (filter === level ? " chosen" : "")} onClick={() => setFilter(filter === level ? "all" : level)}><span>{analysis.summary.by_severity[level]}</span><small>{level}</small></button>)}</div>{analysis.source === "sarif" && <p className="score-disclaimer">Scanner severities above are preserved for display. The {analysis.risk_score}/100 indicator is a local weighted heuristic, not the scanner\u2019s score or a compliance rating.</p>}
               </div>
               <div className="findings-panel panel"><div className="findings-head"><div><h2>Findings <span>{visible.length} / {analysis.findings.length}</span></h2><p>Search and filter scanner results by severity, resource or control</p></div><button className="filter-btn" onClick={() => { setFilter("all"); setResourceFilter("all"); setRuleFilter("all"); setSearch(""); }}>Reset filters <RotateCcw size={12}/></button></div><div className="finding-filters"><input aria-label="Search findings" placeholder="Search title, path, message…" value={search} onChange={(e) => setSearch(e.target.value)}/><select aria-label="Filter by resource" value={resourceFilter} onChange={(e) => setResourceFilter(e.target.value)}><option value="all">All resources</option>{resources.map((item) => <option key={item} value={item}>{item}</option>)}</select><select aria-label="Filter by control" value={ruleFilter} onChange={(e) => setRuleFilter(e.target.value)}><option value="all">All controls</option>{rules.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
                 {visible.length === 0 ? <div className="no-findings"><CheckCircle2 size={22}/><strong>No findings in this category</strong><span>Nothing to review here.</span></div> :
