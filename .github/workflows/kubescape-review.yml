@@ -45,9 +45,7 @@ jobs:
         with:
           format: sarif
           outputFile: kubescape-results
-          frameworks: |
-            nsa
-            mitre
+          frameworks: nsa,mitre
 
       - name: Upload findings to GitHub Code Scanning
         if: always() && hashFiles('kubescape-results.sarif') != ''
