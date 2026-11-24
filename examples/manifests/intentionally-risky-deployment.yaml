@@ -1,0 +1,27 @@
+# SECURITY TEST FIXTURE — intentionally unsafe; never deploy this workload.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-worker
+  namespace: demo
+  labels:
+    app: legacy-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-worker
+  template:
+    metadata:
+      labels:
+        app: legacy-worker
+    spec:
+      hostNetwork: true
+      containers:
+        - name: worker
+          image: nginx:latest
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          ports:
+            - containerPort: 80
