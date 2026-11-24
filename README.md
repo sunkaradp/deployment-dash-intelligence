@@ -14,7 +14,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 
 - Browser-based YAML upload and editing.
 - Multi-document YAML parsing.
-- Checks for replica count, CPU/memory requests, memory limits, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution, and host networking.
+- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution (including Pod-level `runAsNonRoot` inheritance), and host networking.
 - Finding severity, evidence path, and recommendation.
 - Optional FastAPI analysis endpoint.
 - Responsive React and TypeScript interface.
@@ -28,7 +28,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 | Frontend | React, TypeScript, Vite | Manifest editor, analysis results, responsive UI |
 | Browser analysis | TypeScript, js-yaml | Fast local deterministic checks; no cluster credentials |
 | API | Python, FastAPI, PyYAML | Versioned analysis endpoint |
-| Quality | pytest, Ruff, GitHub Actions | Automated checks |
+| Quality | pytest, Ruff, TypeScript, Vite, GitHub Actions | Backend tests/lint and frontend production build |
 | Hosting | GitHub Pages | Public static frontend |
 
 The browser runs deterministic checks locally by default, so the public demo can work without a hosted API or Kubernetes credentials. The FastAPI endpoint is available for API-backed integration.

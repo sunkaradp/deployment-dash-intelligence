@@ -120,7 +120,14 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                 ))
 
             image = container.get("image")
-            if isinstance(image, str) and (":" not in image.rsplit("/", 1)[-1] or image.endswith(":latest")):
+            if not isinstance(image, str) or not image.strip():
+                findings.append(Finding(
+                    "MISSING_CONTAINER_IMAGE", "high", "Container image missing",
+                    "The container does not define an image reference, so the workload cannot be deployed as written.",
+                    f"{path}.image",
+                    "Set the container image to a valid registry reference and prefer an immutable digest for release workloads.", 15,
+                ))
+            elif ":" not in image.rsplit("/", 1)[-1] or image.endswith(":latest"):
                 findings.append(Finding(
                     "MUTABLE_IMAGE_TAG", "medium", "Image tag may be mutable",
                     "The image reference does not pin a specific version or digest.",
@@ -137,6 +144,7 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                         "Add an appropriate probe if the application exposes a reliable health signal.", 4,
                     ))
 
+            pod_security = _mapping(pod_spec.get("securityContext"))
             security = _mapping(container.get("securityContext"))
             if security.get("privileged") is True:
                 findings.append(Finding(
@@ -152,7 +160,7 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                     f"{path}.securityContext.allowPrivilegeEscalation",
                     "Set allowPrivilegeEscalation to false where compatible.", 15,
                 ))
-            if security.get("runAsNonRoot") is not True:
+            if security.get("runAsNonRoot", pod_security.get("runAsNonRoot")) is not True:
                 findings.append(Finding(
                     "RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced",
                     "The container security context does not enforce a non-root user.",
