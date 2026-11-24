@@ -112,11 +112,11 @@ Read these documents before using, contributing to, or deploying the project:
 - [Code of Conduct](CODE_OF_CONDUCT.md) — community expectations.
 - [Public release checklist](docs/RELEASE-CHECKLIST.md) — mandatory release gates.
 
-**Important:** The optional FastAPI endpoint currently has no authentication, authorization, or rate limiting. Keep it local or on a trusted private network; do not expose it to the public internet. Do not upload secrets, kubeconfigs, private keys, customer manifests, or production data to the public demo. The browser workflow is intended to process files locally, but verify network behavior before relying on that property for sensitive data.
+**Important:** The optional FastAPI endpoint is intended for private/local use only and currently has no authentication, authorization, or rate limiting. Do not expose it to the public internet. Do not upload secrets, kubeconfigs, private keys, customer manifests, or production data to the public demo. The browser workflow is intended to process files locally, but verify network behavior before relying on that property for sensitive data.
 
 ## License status
 
-No open-source license has been selected yet. Until an explicit license is added, do not assume that this repository grants permission to reuse, redistribute, or create derivative works. See [Contributing](CONTRIBUTING.md).
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ## Development status
 
