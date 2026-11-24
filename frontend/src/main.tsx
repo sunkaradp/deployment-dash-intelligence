@@ -220,6 +220,7 @@ function analysisFromSarif(raw: unknown): Analysis {
 }
 
 function App() {
+  const [view, setView] = useState<"home" | "workspace">("home");
   const [yaml, setYaml] = useState(SAMPLE);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState("");
@@ -282,9 +283,58 @@ function App() {
     const url = URL.createObjectURL(blob); const a = document.createElement("a");
     a.href = url; a.download = "deployment-readiness-report.json"; a.click(); URL.revokeObjectURL(url);
   }
+  if (view === "home") return <div className="marketing-shell">
+    <header className="marketing-nav">
+      <a className="marketing-brand" href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({top:0,behavior:"smooth"}); }}><span className="marketing-mark"><Layers3 size={19}/></span><span>deploy<span>dash</span></span></a>
+      <nav className="marketing-links"><a href="#platform">Platform</a><a href="#how-it-works">How it works</a><a href="#trust">Security model</a></nav>
+      <div className="marketing-nav-actions"><a className="nav-github" href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><Github size={15}/> GitHub</a><button className="nav-cta" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Open analyzer <ArrowRight size={15}/></button></div>
+    </header>
+    <main id="top">
+      <section className="marketing-hero">
+        <div className="hero-copy"><div className="hero-kicker"><span/> KUBERNETES DEPLOYMENT INTELLIGENCE</div>
+          <h1>Ship with<br/><em>fewer unknowns.</em></h1>
+          <p className="hero-lede">Understand what your Kubernetes manifests are telling you before they reach production. Clear, actionable deployment and security signals — without handing over your cluster.</p>
+          <div className="hero-actions"><button className="hero-primary" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Analyze a manifest <ArrowRight size={17}/></button><a className="hero-secondary" href="#platform">Explore the platform <ArrowDownToLine size={15}/></a></div>
+          <div className="hero-proof"><span><LockKeyhole size={14}/> Local browser analysis</span><i/><span><ShieldCheck size={14}/> Read-only by design</span><i/><span><FileCode2 size={14}/> YAML · JSON · SARIF</span></div>
+        </div>
+        <div className="hero-visual" aria-label="Illustrative Deployment Dash analysis interface">
+          <div className="visual-orbit orbit-one"/><div className="visual-orbit orbit-two"/>
+          <div className="preview-window">
+            <div className="preview-top"><div className="preview-dots"><i/><i/><i/></div><span>DEPLOYMENT REVIEW / LOCAL</span><span className="preview-live"><b/> READY</span></div>
+            <div className="preview-body">
+              <div className="preview-heading"><div><small>WORKLOAD ANALYSIS</small><strong>payments-api</strong><span>Deployment · production</span></div><div className="preview-score"><strong>68</strong><small>/ 100</small></div></div>
+              <div className="preview-meter"><i/></div>
+              <div className="preview-stats"><div><strong>03</strong><span>Findings</span></div><div><strong>02</strong><span>Security</span></div><div><strong>01</strong><span>Reliability</span></div></div>
+              <div className="preview-divider"/>
+              <div className="preview-section-label">PRIORITY FINDINGS <span>ILLUSTRATIVE PREVIEW</span></div>
+              <div className="preview-finding"><span className="finding-dot critical-dot"/><div><strong>Privileged container</strong><small>spec.containers[0].securityContext</small></div><b>CRITICAL</b></div>
+              <div className="preview-finding"><span className="finding-dot high-dot"/><div><strong>Host networking enabled</strong><small>spec.template.spec.hostNetwork</small></div><b>HIGH</b></div>
+              <div className="preview-finding"><span className="finding-dot medium-dot"/><div><strong>Resource requests incomplete</strong><small>spec.containers[0].resources</small></div><b>MEDIUM</b></div>
+              <div className="preview-bottom"><ShieldCheck size={14}/> Findings are advisory. No cluster changes are made.</div>
+            </div>
+          </div>
+          <div className="visual-caption"><span>01 / MANIFEST INSPECTION</span><span>BUILT FOR THE RELEASE PATH</span></div>
+        </div>
+        <div className="hero-index"><span>01</span><i/> PRE-DEPLOYMENT VISIBILITY</div>
+      </section>
+      <section className="marquee-strip"><span>MANIFEST FIRST</span><i/><span>ENGINEER EXPLAINABLE</span><i/><span>READ-ONLY BY DEFAULT</span><i/><span>KUBERNETES NATIVE</span></section>
+      <section className="platform-section" id="platform">
+        <div className="section-intro"><div className="section-kicker">01 — THE PLATFORM</div><div><h2>Clarity at the point<br/>where risk begins.</h2><p>Deployment Dash reviews the configuration you intend to ship, highlights what deserves attention, and gives engineers a practical next step.</p></div></div>
+        <div className="feature-grid">
+          <article className="feature-card feature-large"><div className="feature-number">01 / CONFIGURATION</div><div className="feature-art config-art"><div className="config-line"><span>spec:</span><b>template</b></div><div className="config-line indent"><span>securityContext:</span></div><div className="config-line indent-two"><span>runAsNonRoot:</span><b className="code-good">true</b></div><div className="config-line indent-two"><span>allowPrivilegeEscalation:</span><b className="code-bad">true</b></div><div className="config-warning"><AlertTriangle size={13}/> Review privilege escalation setting</div></div><h3>See beyond valid YAML.</h3><p>Surface configuration gaps across workload reliability and container security — with evidence linked to the exact manifest path.</p></article>
+          <article className="feature-card"><div className="feature-number">02 / PRIORITIZATION</div><div className="feature-art priority-art"><div className="priority-row"><i className="p-critical"/> Critical <b>01</b></div><div className="priority-row"><i className="p-high"/> High <b>02</b></div><div className="priority-row"><i className="p-medium"/> Medium <b>04</b></div><div className="priority-row"><i className="p-low"/> Low <b>03</b></div></div><h3>Know what to fix first.</h3><p>Review findings by severity, resource and control. Keep the signal focused on actionable work.</p></article>
+          <article className="feature-card"><div className="feature-number">03 / WORKFLOW</div><div className="feature-art workflow-art"><div><FileCode2 size={17}/><span>manifest.yaml</span><b>01</b></div><i/><div><ShieldCheck size={17}/><span>analysis</span><b>02</b></div><i/><div><CheckCircle2 size={17}/><span>review</span><b>03</b></div></div><h3>Fit into the way teams ship.</h3><p>Start with a local review. Import Kubescape SARIF reports from your existing GitHub Actions workflow.</p></article>
+        </div>
+      </section>
+      <section className="manifest-section" id="how-it-works"><div className="manifest-copy"><div className="section-kicker">02 — A PRACTICAL WORKFLOW</div><h2>From manifest<br/>to meaningful<br/><em>next steps.</em></h2><p>No platform migration. No cluster credentials. Bring a Kubernetes manifest or an existing SARIF report and inspect it in your browser.</p><button className="manifest-cta" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Try the analyzer <ArrowRight size={16}/></button></div><div className="workflow-steps"><div className="workflow-step"><span>01</span><div><h3>Provide the configuration</h3><p>Paste YAML or upload YAML, JSON, or a SARIF report generated by your scanner.</p></div><b>INPUT</b></div><div className="workflow-step"><span>02</span><div><h3>Run deterministic checks</h3><p>Review explicit rules for workload configuration, reliability signals and container security posture.</p></div><b>ANALYZE</b></div><div className="workflow-step"><span>03</span><div><h3>Prioritize the review</h3><p>Inspect severity, affected resources, evidence paths and remediation guidance. Export a JSON report.</p></div><b>REVIEW</b></div></div></section>
+      <section className="trust-section" id="trust"><div className="trust-top"><div className="section-kicker">03 — TRUST IS AN ENGINEERING REQUIREMENT</div><h2>Useful insight.<br/><em>Without taking control.</em></h2></div><div className="trust-grid"><div><LockKeyhole size={20}/><h3>Your manifest stays local</h3><p>Browser analysis runs on the device. The static demo does not upload your YAML to a hosted analysis service.</p></div><div><ShieldCheck size={20}/><h3>Read-only by design</h3><p>No cluster connection, deployment, patch, restart or automatic remediation is performed.</p></div><div><Info size={20}/><h3>Honest about its scope</h3><p>Rules are advisory configuration checks — not a compliance certification or proof of runtime safety.</p></div></div></section>
+      <section className="closing-section"><div className="section-kicker">DEPLOYMENT DASH INTELLIGENCE</div><h2>Make the next deployment<br/>a more informed one.</h2><button onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Open the analyzer <ArrowRight size={17}/></button><span>MANIFEST IN. CLEARER SIGNAL OUT.</span></section>
+    </main>
+    <footer className="marketing-footer"><a className="marketing-brand" href="#top"><span className="marketing-mark"><Layers3 size={17}/></span><span>deploy<span>dash</span></span></a><span>Independent Kubernetes deployment analysis.</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer">Open source on GitHub <ArrowRight size={13}/></a></footer>
+  </div>;
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="#"><span className="brand-mark"><Layers3 size={19}/></span><span><strong>deploy<span>dash</span></strong><small>DEPLOYMENT REVIEW</small></span></a>
+      <a className="brand" href="#overview" onClick={(e) => { e.preventDefault(); setView("home"); window.scrollTo(0,0); }}><span className="brand-mark"><Layers3 size={19}/></span><span><strong>deploy<span>dash</span></strong><small>DEPLOYMENT REVIEW</small></span></a>
       <div className="side-label">WORKSPACE</div>
       <div className="side-item active"><Gauge size={17}/> Readiness analysis <i/></div>
       
@@ -293,7 +343,7 @@ function App() {
       <div className="sidebar-foot"><div className="status-line"><span/> LOCAL ANALYSIS ENGINE</div><p>Manifest checks run in your browser. No cluster credentials required.</p><div className="version">LOCAL · READ ONLY</div></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>Readiness analysis</strong></div><div className="top-actions"><span className="privacy"><LockKeyhole size={13}/> READ-ONLY MODE</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><Github size={16}/> Source</a></div></header>
+      <header className="topbar"><div className="breadcrumb"><button className="breadcrumb-home" onClick={() => { setView("home"); window.scrollTo(0,0); }}>deploydash</button> <span>/</span> <strong>Readiness analysis</strong></div><div className="top-actions"><span className="privacy"><LockKeyhole size={13}/> READ-ONLY MODE</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><Github size={16}/> Source</a></div></header>
       <section className="page-intro"><div><div className="eyebrow"><span/> PRE-DEPLOYMENT CHECK</div><h1>Know the risk <em>before</em> you ship.</h1><p>Inspect Kubernetes workload manifests for configuration gaps and security risks. Get clear findings your team can act on.</p></div><div className="intro-note"><ShieldCheck size={18}/><span><strong>Safe by design</strong><small>No cluster access. No changes applied.</small></span></div></section>
       <section className="workspace-grid">
         <div className="panel editor-panel">
