@@ -61,6 +61,7 @@ function analyzeYaml(source: string): Analysis {
       if (typeof replicas === "number" && replicas < 2) findings.push(makeFinding("SINGLE_REPLICA", "medium", "Single replica configured", "Only one replica is configured, so a pod disruption may cause downtime.", base + ".spec.replicas", "Consider at least two replicas when the application and budget support it."));
     }
     containers.forEach((container, containerIndex) => {
+      if (findings.length >= MAX_FINDINGS) throw new Error("Analysis exceeds the 5,000-finding safety limit.");
       const path = base + "." + podPath + ".containers[" + containerIndex + "]";
       if (Array.isArray(container.ports)) container.ports.forEach((portValue: unknown, portIndex: number) => { const hostPort = obj(portValue).hostPort; if (typeof hostPort === "number" && hostPort > 0) findings.push(makeFinding("HOST_PORT_EXPOSED", "medium", "Host port exposed", "The container binds a port directly on the Kubernetes node.", path + ".ports[" + portIndex + "].hostPort", "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.")); });
       const resources = obj(container.resources);
