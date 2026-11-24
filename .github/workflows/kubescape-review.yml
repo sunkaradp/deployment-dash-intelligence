@@ -6,6 +6,7 @@ on:
     paths:
       - "**/*.yaml"
       - "**/*.yml"
+      - "**/*.json"
       - "**/Chart.yaml"
       - "**/kustomization.yaml"
       - "**/kustomization.yml"
@@ -15,6 +16,7 @@ on:
     paths:
       - "**/*.yaml"
       - "**/*.yml"
+      - "**/*.json"
       - "**/Chart.yaml"
       - "**/kustomization.yaml"
       - "**/kustomization.yml"
@@ -38,8 +40,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Detect Kubernetes manifests
+        id: manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -rlE '^[[:space:]]*apiVersion:[[:space:]]*[^[:space:]]+' . \
+            --include='*.yaml' --include='*.yml' \
+            --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist \
+            --exclude-dir=venv --exclude-dir=.venv > /tmp/k8s-manifests.txt; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Kubernetes manifest candidates:"
+            cat /tmp/k8s-manifests.txt
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Kubernetes YAML manifests found. Kubescape scan is skipped."
+          fi
+
       - name: Scan manifests with Kubescape
         id: scan
+        if: steps.manifests.outputs.found == 'true'
         uses: kubescape/github-action@main
         continue-on-error: true
         with:
@@ -48,22 +68,27 @@ jobs:
           frameworks: nsa,mitre
 
       - name: Upload findings to GitHub Code Scanning
-        if: always() && hashFiles('kubescape-results.sarif') != ''
+        if: steps.manifests.outputs.found == 'true' && steps.scan.outcome == 'success' && hashFiles('kubescape-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: kubescape-results.sarif
           category: kubescape-manifest-scan
 
       - name: Keep SARIF report as a downloadable artifact
-        if: always() && hashFiles('kubescape-results.sarif') != ''
+        if: steps.manifests.outputs.found == 'true' && steps.scan.outcome == 'success' && hashFiles('kubescape-results.sarif') != ''
         uses: actions/upload-artifact@v4
         with:
           name: kubescape-sarif-report
           path: kubescape-results.sarif
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
-      - name: Explain missing SARIF output
-        if: always() && hashFiles('kubescape-results.sarif') == ''
+      - name: Explain missing or failed scan
+        if: always() && (steps.manifests.outputs.found != 'true' || steps.scan.outcome == 'failure')
+        shell: bash
         run: |
-          echo "::warning::Kubescape did not produce a SARIF report. Check the scan step logs and manifest paths."
+          if [[ "${{ steps.manifests.outputs.found }}" != "true" ]]; then
+            echo "::notice::No Kubernetes manifests were found; there is nothing for Kubescape to scan."
+          else
+            echo "::warning::Kubescape did not complete successfully. Check the scan step logs."
+          fi
