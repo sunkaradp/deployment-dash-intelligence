@@ -7,12 +7,12 @@ from app.analyzer import ManifestError, analyze_documents
 app = FastAPI(
     title="Deployment Dash Intelligence API",
     version="0.1.0",
-    description="Read-only, deterministic Kubernetes deployment manifest analysis.",
+    description="Private/local read-only Kubernetes deployment manifest analysis. Not hardened for public exposure.",
 )
 
 
 class AnalyzeRequest(BaseModel):
-    yaml: str = Field(min_length=1, max_length=500_000, description="One or more Kubernetes YAML documents")
+    yaml: str = Field(min_length=1, max_length=1_000_000, description="One or more Kubernetes YAML documents")
 
 
 @app.get("/healthz")
