@@ -100,6 +100,18 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
 
         for container_index, container in enumerate(containers):
             path = f"{base}.{_container_path(kind)}.containers[{container_index}]"
+            ports = container.get("ports", [])
+            if isinstance(ports, list):
+                for port_index, port_value in enumerate(ports):
+                    port = _mapping(port_value)
+                    if isinstance(port.get("hostPort"), int) and port["hostPort"] > 0:
+                        findings.append(Finding(
+                            "HOST_PORT_EXPOSED", "medium", "Host port exposed",
+                            "The container binds a port directly on the Kubernetes node.",
+                            f"{path}.ports[{port_index}].hostPort",
+                            "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.", 8,
+                        ))
+
             resources = _mapping(container.get("resources"))
             requests = _mapping(resources.get("requests"))
             limits = _mapping(resources.get("limits"))
@@ -160,13 +172,109 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
                     f"{path}.securityContext.allowPrivilegeEscalation",
                     "Set allowPrivilegeEscalation to false where compatible.", 15,
                 ))
-            if security.get("runAsNonRoot", pod_security.get("runAsNonRoot")) is not True:
+            effective_run_as_non_root = security.get("runAsNonRoot", pod_security.get("runAsNonRoot"))
+            if effective_run_as_non_root is not True:
+                security_path = (
+                    f"{path}.securityContext.runAsNonRoot"
+                    if "runAsNonRoot" in security
+                    else f"{base}.{_container_path(kind)}.securityContext.runAsNonRoot"
+                )
                 findings.append(Finding(
                     "RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced",
-                    "The container security context does not enforce a non-root user.",
-                    f"{path}.securityContext.runAsNonRoot",
-                    "Set runAsNonRoot to true and configure a non-zero runAsUser if needed.", 8,
+                    "Neither the pod nor this container enforces non-root execution.",
+                    security_path,
+                    "Set runAsNonRoot to true at pod or container level and configure a non-zero runAsUser if needed.", 8,
                 ))
+
+            effective_run_as_user = security.get("runAsUser", pod_security.get("runAsUser"))
+            if effective_run_as_user == 0:
+                run_as_user_path = (
+                    f"{path}.securityContext.runAsUser"
+                    if "runAsUser" in security
+                    else f"{base}.{_container_path(kind)}.securityContext.runAsUser"
+                )
+                findings.append(Finding(
+                    "RUN_AS_ROOT", "high", "Container runs as root",
+                    "The effective runAsUser is explicitly set to UID 0.",
+                    run_as_user_path,
+                    "Use a dedicated non-zero UID and verify file permissions and image compatibility.", 15,
+                ))
+
+            if security.get("readOnlyRootFilesystem") is not True:
+                findings.append(Finding(
+                    "READ_ONLY_ROOT_FILESYSTEM_NOT_SET", "low", "Root filesystem is writable",
+                    "The container does not explicitly make its root filesystem read-only.",
+                    f"{path}.securityContext.readOnlyRootFilesystem",
+                    "Set readOnlyRootFilesystem to true where the application can write to mounted volumes or temporary storage instead.", 4,
+                ))
+
+            capabilities = _mapping(security.get("capabilities"))
+            added_capabilities = capabilities.get("add", [])
+            dropped_capabilities = capabilities.get("drop", [])
+            if isinstance(added_capabilities, list) and any(str(item).upper() == "ALL" for item in added_capabilities):
+                findings.append(Finding(
+                    "ALL_CAPABILITIES_ADDED", "critical", "All Linux capabilities added",
+                    "The container explicitly adds every Linux capability.",
+                    f"{path}.securityContext.capabilities.add",
+                    "Remove the ALL capability grant and add only individually justified capabilities.", 25,
+                ))
+            if not isinstance(dropped_capabilities, list) or not any(str(item).upper() == "ALL" for item in dropped_capabilities):
+                findings.append(Finding(
+                    "ALL_CAPABILITIES_NOT_DROPPED", "medium", "Default Linux capabilities retained",
+                    "The container does not explicitly drop all Linux capabilities.",
+                    f"{path}.securityContext.capabilities.drop",
+                    "Drop ALL capabilities, then add back only the minimum individually required capabilities.", 8,
+                ))
+
+            if security.get("allowPrivilegeEscalation") is not False and security.get("privileged") is not True:
+                findings.append(Finding(
+                    "PRIVILEGE_ESCALATION_NOT_DISABLED", "medium", "Privilege escalation not disabled",
+                    "The container does not explicitly disable privilege escalation.",
+                    f"{path}.securityContext.allowPrivilegeEscalation",
+                    "Set allowPrivilegeEscalation to false unless a documented exception is required.", 8,
+                ))
+
+        pod_security = _mapping(pod_spec.get("securityContext"))
+        seccomp = _mapping(pod_security.get("seccompProfile"))
+        if seccomp.get("type") not in {"RuntimeDefault", "Localhost"}:
+            findings.append(Finding(
+                "SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit",
+                "The pod does not explicitly select RuntimeDefault or a Localhost seccomp profile.",
+                f"{base}.{_container_path(kind)}.securityContext.seccompProfile",
+                "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile.", 8,
+            ))
+
+        for namespace_field, rule_id, title in (
+            ("hostPID", "HOST_PID_ENABLED", "Host PID namespace enabled"),
+            ("hostIPC", "HOST_IPC_ENABLED", "Host IPC namespace enabled"),
+        ):
+            if pod_spec.get(namespace_field) is True:
+                findings.append(Finding(
+                    rule_id, "high", title,
+                    f"The pod shares the host {namespace_field[4:]} namespace.",
+                    f"{base}.{_container_path(kind)}.{namespace_field}",
+                    "Disable host namespace sharing unless the workload has a reviewed operational requirement.", 15,
+                ))
+
+        if pod_spec.get("automountServiceAccountToken") is True:
+            findings.append(Finding(
+                "SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED", "medium", "Service account token automounted",
+                "The pod explicitly requests an automatically mounted service account token.",
+                f"{base}.{_container_path(kind)}.automountServiceAccountToken",
+                "Disable token automounting when the workload does not need Kubernetes API access.", 8,
+            ))
+
+        volumes = pod_spec.get("volumes", [])
+        if isinstance(volumes, list):
+            for volume_index, volume_value in enumerate(volumes):
+                volume = _mapping(volume_value)
+                if isinstance(volume.get("hostPath"), dict):
+                    findings.append(Finding(
+                        "HOST_PATH_VOLUME", "high", "Host path volume mounted",
+                        "The pod references a path on the node filesystem.",
+                        f"{base}.{_container_path(kind)}.volumes[{volume_index}].hostPath",
+                        "Avoid hostPath volumes where possible; use a narrowly scoped, read-only mount only when required and reviewed.", 15,
+                    ))
 
         if pod_spec.get("hostNetwork") is True:
             findings.append(Finding(
