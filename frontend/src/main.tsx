@@ -85,6 +85,11 @@ function analyzeYaml(source: string): Analysis {
         findings.push(makeFinding("RUN_AS_ROOT", "high", "Container runs as root", "The effective runAsUser is explicitly set to UID 0.", runAsUserPath, "Use a dedicated non-zero UID and verify file permissions and image compatibility."));
       }
       if (security.readOnlyRootFilesystem !== true) findings.push(makeFinding("READ_ONLY_ROOT_FILESYSTEM_NOT_SET", "low", "Root filesystem is writable", "The container does not explicitly make its root filesystem read-only.", path + ".securityContext.readOnlyRootFilesystem", "Set readOnlyRootFilesystem to true where the application can write to mounted volumes or temporary storage instead."));
+      const effectiveSeccomp = obj(security.seccompProfile || podSecurity.seccompProfile);
+      if (!["RuntimeDefault", "Localhost"].includes(String(effectiveSeccomp.type || ""))) {
+        const seccompPath = Object.prototype.hasOwnProperty.call(security, "seccompProfile") ? path + ".securityContext.seccompProfile" : base + "." + podPath + ".securityContext.seccompProfile";
+        findings.push(makeFinding("SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit", "Neither the pod nor this container selects RuntimeDefault or a Localhost seccomp profile.", seccompPath, "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile."));
+      }
       const capabilities = obj(security.capabilities);
       const added = Array.isArray(capabilities.add) ? capabilities.add : [];
       const dropped = Array.isArray(capabilities.drop) ? capabilities.drop : [];
@@ -92,8 +97,6 @@ function analyzeYaml(source: string): Analysis {
       if (!dropped.some((item: unknown) => String(item).toUpperCase() === "ALL")) findings.push(makeFinding("ALL_CAPABILITIES_NOT_DROPPED", "medium", "Default Linux capabilities retained", "The container does not explicitly drop all Linux capabilities.", path + ".securityContext.capabilities.drop", "Drop ALL capabilities, then add back only the minimum individually required capabilities."));
 
     });
-    const podSeccomp = obj(podSecurityProfile(pod));
-    if (!["RuntimeDefault", "Localhost"].includes(String(podSeccomp.type || ""))) findings.push(makeFinding("SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit", "The pod does not explicitly select RuntimeDefault or a Localhost seccomp profile.", base + "." + podPath + ".securityContext.seccompProfile", "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile."));
     if (pod.hostPID === true) findings.push(makeFinding("HOST_PID_ENABLED", "high", "Host PID namespace enabled", "The pod shares the host PID namespace.", base + "." + podPath + ".hostPID", "Disable host namespace sharing unless the workload has a reviewed operational requirement."));
     if (pod.hostIPC === true) findings.push(makeFinding("HOST_IPC_ENABLED", "high", "Host IPC namespace enabled", "The pod shares the host IPC namespace.", base + "." + podPath + ".hostIPC", "Disable host namespace sharing unless the workload has a reviewed operational requirement."));
     if (pod.automountServiceAccountToken === true) findings.push(makeFinding("SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED", "medium", "Service account token automounted", "The pod explicitly requests an automatically mounted service account token.", base + "." + podPath + ".automountServiceAccountToken", "Disable token automounting when the workload does not need Kubernetes API access."));
