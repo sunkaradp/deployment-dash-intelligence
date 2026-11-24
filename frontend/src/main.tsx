@@ -186,7 +186,7 @@ function App() {
         return;
       }
       try {
-        if (/\\.(sarif|json)$/i.test(file.name)) {
+        if (/\.(sarif|json)$/i.test(file.name)) {
           const imported = analysisFromSarif(JSON.parse(content));
           setAnalysis(imported);
           setFilter("all");
