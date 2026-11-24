@@ -69,6 +69,7 @@ Interactive API documentation: `http://127.0.0.1:8000/docs` while the API is run
 The API is deliberately private/local. Do not bind it to `0.0.0.0` or expose it through a public reverse proxy. If you run the container image, publish the port only on loopback, for example:
 
 ```bash
+docker build -t deployment-dash-intelligence .
 docker run --rm -p 127.0.0.1:8000:8000 deployment-dash-intelligence
 ```
 
