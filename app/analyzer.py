@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 import yaml
+from yaml.constructor import ConstructorError
+from yaml.nodes import MappingNode
 
 
 SUPPORTED_KINDS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob"}
@@ -31,6 +33,7 @@ MAX_INPUT_BYTES = 1_000_000
 MAX_DOCUMENTS = 100
 MAX_YAML_ALIASES = 50
 MAX_YAML_DEPTH = 50
+MAX_FINDINGS = 5_000
 
 
 class BoundedSafeLoader(yaml.SafeLoader):
@@ -40,6 +43,31 @@ class BoundedSafeLoader(yaml.SafeLoader):
         super().__init__(stream)
         self._alias_count = 0
         self._compose_depth = 0
+
+    def construct_mapping(self, node: Any, deep: bool = False) -> dict[Any, Any]:
+        if isinstance(node, MappingNode):
+            seen: set[Any] = set()
+            for key_node, _ in node.value:
+                if key_node.tag == "tag:yaml.org,2002:merge":
+                    continue
+                key = self.construct_object(key_node, deep=deep)
+                try:
+                    if key in seen:
+                        raise ConstructorError(
+                            "while constructing a mapping",
+                            node.start_mark,
+                            f"duplicate key {key!r}",
+                            key_node.start_mark,
+                        )
+                    seen.add(key)
+                except TypeError as exc:
+                    raise ConstructorError(
+                        "while constructing a mapping",
+                        node.start_mark,
+                        "unhashable mapping key",
+                        key_node.start_mark,
+                    ) from exc
+        return super().construct_mapping(node, deep=deep)
 
     def compose_node(self, parent: Any, index: Any) -> Any:
         if self.check_event(yaml.AliasEvent):
@@ -79,7 +107,11 @@ def _containers(pod_spec: dict[str, Any]) -> list[dict[str, Any]]:
 
 def analyze_documents(yaml_text: str) -> dict[str, Any]:
     """Analyze supported Kubernetes workloads and return explainable findings."""
-    if len(yaml_text.encode("utf-8")) > MAX_INPUT_BYTES:
+    try:
+        input_size = len(yaml_text.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise ManifestError("Input contains invalid Unicode text.") from exc
+    if input_size > MAX_INPUT_BYTES:
         raise ManifestError(f"Input exceeds the {MAX_INPUT_BYTES:,}-byte limit.")
     if not yaml_text.strip():
         raise ManifestError("Provide at least one Kubernetes YAML document.")
@@ -328,6 +360,9 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
         raise ManifestError(
             "No supported workload found. Supported kinds: " + ", ".join(sorted(SUPPORTED_KINDS))
         )
+
+    if len(findings) > MAX_FINDINGS:
+        raise ManifestError(f"Analysis exceeds the {MAX_FINDINGS:,}-finding limit.")
 
     # Score is a transparent sum of rule weights, capped for a stable 0-100 scale.
     score = min(100, sum(item.points for item in findings))
