@@ -89,7 +89,8 @@ function analysisFromSarif(raw: unknown): Analysis {
       const severity: Severity = /critical/.test(severityText) || securitySeverity >= 9 ? "critical"
         : /high/.test(severityText) || securitySeverity >= 7 || level === "error" ? "high"
         : /low/.test(severityText) || level === "note" ? "low" : "medium";
-      const location = obj((Array.isArray(result.locations) ? result.locations[0] : {}).physicalLocation);
+      const firstLocation = Array.isArray(result.locations) ? obj(result.locations[0]) : {};
+      const location = obj(firstLocation.physicalLocation);
       const artifact = obj(location.artifactLocation);
       const region = obj(location.region);
       const uri = String(artifact.uri || "manifest");
