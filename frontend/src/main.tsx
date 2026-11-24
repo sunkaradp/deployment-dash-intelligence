@@ -24,10 +24,11 @@ function analyzeYaml(source: string): Analysis {
   if (new TextEncoder().encode(source).length > MAX_INPUT_BYTES) throw new Error("Input exceeds the 1 MB safety limit.");
   const docs: unknown[] = [];
   try {
-    loadAll(source, (document) => {
+    const yamlOptions = { maxAliasCount: 50 } as unknown as Parameters<typeof loadAll>[2];
+    loadAll(source, (document: unknown) => {
       if (docs.length >= MAX_DOCUMENTS) throw new Error("Input exceeds the 100-document safety limit.");
       docs.push(document);
-    }, { maxAliasCount: 50 });
+    }, yamlOptions);
   } catch (err) {
     throw new Error(err instanceof Error && /limit/.test(err.message) ? err.message : "The YAML could not be parsed. Check indentation, quotes and document separators.");
   }
