@@ -6,7 +6,7 @@ A public release is blocked until every required item below is verified. A check
 
 - [ ] Confirm the maintainer has the right to publish all source, assets, names, and documentation.
 - [ ] Check employer, university, internship, thesis, and third-party ownership obligations.
-- [ ] Select and add an explicit open-source license.
+- [x] Select and add Apache License 2.0 (ownership review is still required).
 - [ ] Review dependency licenses and third-party notices.
 - [ ] Confirm the public repository contains no private thesis or employer material.
 
@@ -20,8 +20,8 @@ A public release is blocked until every required item below is verified. A check
 
 ## Application security
 
-- [ ] Add byte-size and document-count limits to browser YAML and SARIF/JSON imports.
-- [ ] Add parser depth/alias protections and adversarial parser tests.
+- [x] Add a 1 MB browser input/file limit and a 100-document YAML limit (verify in CI).
+- [x] Add YAML alias/depth protections and adversarial backend tests (verify in CI).
 - [ ] Confirm no manifest content is transmitted to third parties.
 - [ ] Validate SARIF structure and bound result counts and rendered strings.
 - [ ] Review all React rendering paths for HTML injection and unsafe URL handling.
@@ -30,7 +30,7 @@ A public release is blocked until every required item below is verified. A check
 
 ## Supply chain and CI
 
-- [ ] Pin every third-party GitHub Action to a reviewed full commit SHA.
+- [ ] Pin every third-party GitHub Action to a reviewed full commit SHA (several are pinned; verify all actions and their provenance).
 - [ ] Replace mutable action references such as @main.
 - [ ] Add dependency lockfiles and use reproducible installs in CI.
 - [ ] Enable dependency update automation and vulnerability alerts.
@@ -56,4 +56,4 @@ A public release is blocked until every required item below is verified. A check
 - [ ] Create a versioned release and changelog.
 - [ ] Re-run the complete checklist against the exact release commit.
 
-**Current status:** NOT READY. Documentation is being established; source hardening, history scanning, licensing, and independent verification remain outstanding.
+**Current status:** NOT READY. Apache licensing and initial parser/input limits have been added, but ownership review, dependency lockfiles, full action pin review, secret-history scanning, API privacy controls, and independent verification remain outstanding.
