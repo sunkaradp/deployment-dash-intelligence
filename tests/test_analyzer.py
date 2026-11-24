@@ -314,7 +314,7 @@ def test_rejects_more_than_one_hundred_documents():
 
 
 def test_rejects_excessive_yaml_aliases():
-    aliases = " ".join(f"*a{i}" for i in range(51))
+    aliases = " ".join("*base" for _ in range(51))
     source = "base: &base value\nitems: [" + aliases + "]\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: x\nspec:\n  template:\n    spec:\n      containers:\n        - name: app\n          image: app:1\n"
     with pytest.raises(ManifestError, match="parser safety limit"):
         analyze_documents(source)
