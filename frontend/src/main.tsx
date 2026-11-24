@@ -10,7 +10,7 @@ type Analysis = { source: "yaml" | "sarif"; scanner_name?: string; risk_score: n
 
 const SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payments-api\n  namespace: production\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: payments-api\n  template:\n    metadata:\n      labels:\n        app: payments-api\n    spec:\n      hostNetwork: true\n      containers:\n        - name: api\n          image: example.com/payments-api:latest\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"100m\"\n            limits:\n              cpu: \"500m\"\n          securityContext:\n            privileged: true\n            allowPrivilegeEscalation: true\n";
 const CLEAN_SAMPLE = "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: storefront\n  namespace: production\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app: storefront\n  template:\n    metadata:\n      labels:\n        app: storefront\n    spec:\n      containers:\n        - name: web\n          image: ghcr.io/acme/storefront:2.4.1\n          ports:\n            - containerPort: 8080\n          resources:\n            requests:\n              cpu: \"200m\"\n              memory: \"256Mi\"\n            limits:\n              cpu: \"1\"\n              memory: \"512Mi\"\n          readinessProbe:\n            httpGet:\n              path: /ready\n              port: 8080\n          livenessProbe:\n            httpGet:\n              path: /health\n              port: 8080\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n";
-const WEIGHTS = { WORKLOAD_NO_CONTAINERS: 25, MISSING_CONTAINER_IMAGE: 15, SINGLE_REPLICA: 10, MISSING_RESOURCE_REQUESTS: 8, MISSING_MEMORY_LIMIT: 8, MUTABLE_IMAGE_TAG: 7, MISSING_READINESSPROBE: 4, MISSING_LIVENESSPROBE: 4, PRIVILEGED_CONTAINER: 25, PRIVILEGE_ESCALATION_ALLOWED: 15, RUN_AS_NON_ROOT_NOT_SET: 8, HOST_NETWORK_ENABLED: 15 };
+const WEIGHTS = { WORKLOAD_NO_CONTAINERS: 25, MISSING_CONTAINER_IMAGE: 15, SINGLE_REPLICA: 10, MISSING_RESOURCE_REQUESTS: 8, MISSING_MEMORY_LIMIT: 8, MUTABLE_IMAGE_TAG: 7, MISSING_READINESSPROBE: 4, MISSING_LIVENESSPROBE: 4, PRIVILEGED_CONTAINER: 25, PRIVILEGE_ESCALATION_ALLOWED: 15, PRIVILEGE_ESCALATION_NOT_DISABLED: 8, RUN_AS_NON_ROOT_NOT_SET: 8, RUN_AS_ROOT: 15, READ_ONLY_ROOT_FILESYSTEM_NOT_SET: 4, ALL_CAPABILITIES_ADDED: 25, ALL_CAPABILITIES_NOT_DROPPED: 8, SECCOMP_PROFILE_NOT_SET: 8, HOST_PID_ENABLED: 15, HOST_IPC_ENABLED: 15, SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED: 8, HOST_PATH_VOLUME: 15, HOST_PORT_EXPOSED: 8, HOST_NETWORK_ENABLED: 15 };
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
 function pathObject(value: unknown, path: string): Record<string, any> { let current: unknown = value; path.split(".").forEach((part) => { current = obj(current)[part]; }); return obj(current); }
 function makeFinding(rule: keyof typeof WEIGHTS, severity: Severity, title: string, message: string, path: string, recommendation: string): Finding { return { rule_id: rule, severity, title, message, path, recommendation, points: WEIGHTS[rule] }; }
@@ -50,6 +50,7 @@ function analyzeYaml(source: string): Analysis {
     }
     containers.forEach((container, containerIndex) => {
       const path = base + "." + podPath + ".containers[" + containerIndex + "]";
+      if (Array.isArray(container.ports)) container.ports.forEach((portValue: unknown, portIndex: number) => { const hostPort = obj(portValue).hostPort; if (typeof hostPort === "number" && hostPort > 0) findings.push(makeFinding("HOST_PORT_EXPOSED", "medium", "Host port exposed", "The container binds a port directly on the Kubernetes node.", path + ".ports[" + portIndex + "].hostPort", "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.")); });
       const resources = obj(container.resources);
       const requests = obj(resources.requests);
       const limits = obj(resources.limits);
@@ -71,12 +72,34 @@ function analyzeYaml(source: string): Analysis {
       const security = obj(container.securityContext);
       if (security.privileged === true) findings.push(makeFinding("PRIVILEGED_CONTAINER", "critical", "Privileged container", "Privileged containers receive extended host-level capabilities.", path + ".securityContext.privileged", "Remove privileged mode unless a documented, reviewed requirement exists."));
       if (security.allowPrivilegeEscalation === true) findings.push(makeFinding("PRIVILEGE_ESCALATION_ALLOWED", "high", "Privilege escalation allowed", "The container explicitly allows processes to gain more privileges.", path + ".securityContext.allowPrivilegeEscalation", "Set allowPrivilegeEscalation to false where compatible."));
+      if (security.allowPrivilegeEscalation !== false && security.privileged !== true) findings.push(makeFinding("PRIVILEGE_ESCALATION_NOT_DISABLED", "medium", "Privilege escalation not disabled", "The container does not explicitly disable privilege escalation.", path + ".securityContext.allowPrivilegeEscalation", "Set allowPrivilegeEscalation to false unless a documented exception is required."));
       const runAsNonRoot = security.runAsNonRoot ?? podSecurity.runAsNonRoot;
       if (runAsNonRoot !== true) {
         const nonRootPath = Object.prototype.hasOwnProperty.call(security, "runAsNonRoot") ? path + ".securityContext.runAsNonRoot" : base + "." + podPath + ".securityContext.runAsNonRoot";
         findings.push(makeFinding("RUN_AS_NON_ROOT_NOT_SET", "medium", "Non-root execution not enforced", "Neither the pod nor this container enforces non-root execution.", nonRootPath, "Set runAsNonRoot to true at pod or container level and configure a non-zero runAsUser if needed."));
       }
+      const runAsUser = security.runAsUser ?? podSecurity.runAsUser;
+      if (runAsUser === 0) {
+        const runAsUserPath = Object.prototype.hasOwnProperty.call(security, "runAsUser") ? path + ".securityContext.runAsUser" : base + "." + podPath + ".securityContext.runAsUser";
+        findings.push(makeFinding("RUN_AS_ROOT", "high", "Container runs as root", "The effective runAsUser is explicitly set to UID 0.", runAsUserPath, "Use a dedicated non-zero UID and verify file permissions and image compatibility."));
+      }
+      if (security.readOnlyRootFilesystem !== true) findings.push(makeFinding("READ_ONLY_ROOT_FILESYSTEM_NOT_SET", "low", "Root filesystem is writable", "The container does not explicitly make its root filesystem read-only.", path + ".securityContext.readOnlyRootFilesystem", "Set readOnlyRootFilesystem to true where the application can write to mounted volumes or temporary storage instead."));
+      const effectiveSeccomp = obj(security.seccompProfile || podSecurity.seccompProfile);
+      if (!["RuntimeDefault", "Localhost"].includes(String(effectiveSeccomp.type || ""))) {
+        const seccompPath = Object.prototype.hasOwnProperty.call(security, "seccompProfile") ? path + ".securityContext.seccompProfile" : base + "." + podPath + ".securityContext.seccompProfile";
+        findings.push(makeFinding("SECCOMP_PROFILE_NOT_SET", "medium", "Seccomp profile not explicit", "Neither the pod nor this container selects RuntimeDefault or a Localhost seccomp profile.", seccompPath, "Set seccompProfile.type to RuntimeDefault or a reviewed Localhost profile."));
+      }
+      const capabilities = obj(security.capabilities);
+      const added = Array.isArray(capabilities.add) ? capabilities.add : [];
+      const dropped = Array.isArray(capabilities.drop) ? capabilities.drop : [];
+      if (added.some((item: unknown) => String(item).toUpperCase() === "ALL")) findings.push(makeFinding("ALL_CAPABILITIES_ADDED", "critical", "All Linux capabilities added", "The container explicitly adds every Linux capability.", path + ".securityContext.capabilities.add", "Remove the ALL capability grant and add only individually justified capabilities."));
+      if (!dropped.some((item: unknown) => String(item).toUpperCase() === "ALL")) findings.push(makeFinding("ALL_CAPABILITIES_NOT_DROPPED", "medium", "Default Linux capabilities retained", "The container does not explicitly drop all Linux capabilities.", path + ".securityContext.capabilities.drop", "Drop ALL capabilities, then add back only the minimum individually required capabilities."));
+
     });
+    if (pod.hostPID === true) findings.push(makeFinding("HOST_PID_ENABLED", "high", "Host PID namespace enabled", "The pod shares the host PID namespace.", base + "." + podPath + ".hostPID", "Disable host namespace sharing unless the workload has a reviewed operational requirement."));
+    if (pod.hostIPC === true) findings.push(makeFinding("HOST_IPC_ENABLED", "high", "Host IPC namespace enabled", "The pod shares the host IPC namespace.", base + "." + podPath + ".hostIPC", "Disable host namespace sharing unless the workload has a reviewed operational requirement."));
+    if (pod.automountServiceAccountToken === true) findings.push(makeFinding("SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED", "medium", "Service account token automounted", "The pod explicitly requests an automatically mounted service account token.", base + "." + podPath + ".automountServiceAccountToken", "Disable token automounting when the workload does not need Kubernetes API access."));
+    if (Array.isArray(pod.volumes)) pod.volumes.forEach((volumeValue: unknown, volumeIndex: number) => { if (obj(obj(volumeValue).hostPath).path) findings.push(makeFinding("HOST_PATH_VOLUME", "high", "Host path volume mounted", "The pod references a path on the node filesystem.", base + "." + podPath + ".volumes[" + volumeIndex + "].hostPath", "Avoid hostPath volumes where possible; use a narrowly scoped, read-only mount only when required and reviewed.")); });
     if (pod.hostNetwork === true) findings.push(makeFinding("HOST_NETWORK_ENABLED", "high", "Host networking enabled", "The pod shares the host network namespace.", base + "." + podPath + ".hostNetwork", "Disable host networking unless the workload has a reviewed need for it."));
     findings.slice(findingStart).forEach((finding) => {
       finding.resource = workloadIdentity;
