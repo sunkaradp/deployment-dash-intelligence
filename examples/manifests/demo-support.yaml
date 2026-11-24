@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: demo
+spec:
+  selector:
+    app: payments-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-api-config
+  namespace: demo
+data:
+  LOG_LEVEL: info
+  FEATURE_FLAGS: "readiness-checks"
