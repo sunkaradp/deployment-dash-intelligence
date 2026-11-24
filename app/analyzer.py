@@ -268,7 +268,7 @@ def analyze_documents(yaml_text: str) -> dict[str, Any]:
         if isinstance(volumes, list):
             for volume_index, volume_value in enumerate(volumes):
                 volume = _mapping(volume_value)
-                if isinstance(volume.get("hostPath"), dict):
+                if _mapping(volume.get("hostPath")).get("path"):
                     findings.append(Finding(
                         "HOST_PATH_VOLUME", "high", "Host path volume mounted",
                         "The pod references a path on the node filesystem.",
