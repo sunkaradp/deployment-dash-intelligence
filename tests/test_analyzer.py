@@ -346,7 +346,7 @@ spec:
 
 def test_rejects_invalid_unicode_surrogates_as_manifest_error():
     with pytest.raises(ManifestError, match="invalid Unicode"):
-        analyze_documents("\\ud800")
+        analyze_documents("\ud800")
 
 
 def test_repeated_analysis_is_deterministic():
@@ -356,7 +356,7 @@ def test_repeated_analysis_is_deterministic():
 
 
 def test_ignores_non_workload_documents_and_counts_them():
-    source = "apiVersion: v1\\nkind: ConfigMap\\nmetadata:\\n  name: settings\\n---\\n" + SAFE_WORKLOAD
+    source = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n---\n" + SAFE_WORKLOAD
     result = analyze_documents(source)
     assert result["summary"]["workloads_analyzed"] == 1
     assert result["summary"]["documents_ignored"] == 1
