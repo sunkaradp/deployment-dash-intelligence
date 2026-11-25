@@ -72,7 +72,7 @@ Use the composite action after checking out your repository:
 
 ```yaml
 - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-- uses: sunkaradp/deployment-dash-intelligence/.github/actions/deploydash@main
+- uses: sunkaradp/deployment-dash-intelligence/.github/actions/deploydash@48933bca7a6bdf6a87be49f36a1c61a50e543294
   with:
     path: ./k8s
     fail-on-findings: "true"
