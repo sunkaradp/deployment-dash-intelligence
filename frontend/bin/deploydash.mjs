@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { analyzeYaml } from "../.cli-build/analyzer.js";
 
 const MAX_FILES = 200;
