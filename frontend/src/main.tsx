@@ -274,7 +274,7 @@ function App() {
       <section className="marketing-hero">
         <div className="hero-copy"><div className="hero-kicker"><span/> KUBERNETES DEPLOYMENT INTELLIGENCE</div>
           <h1>Ship with<br/><em>fewer unknowns.</em></h1>
-          <p className="hero-lede">Understand what your Kubernetes manifests are telling you before they reach production. Clear, actionable deployment and security signals — without handing over your cluster.</p>
+          <p className="hero-lede">Understand what your Kubernetes manifests are telling you before they reach production. Clear, actionable deployment and security signals, without handing over your cluster.</p>
           <div className="hero-actions"><button className="hero-primary" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Analyze a manifest <ArrowRight size={17}/></button><a className="hero-secondary" href="#platform">Explore the platform <ArrowDownToLine size={15}/></a></div>
           <div className="hero-proof"><span><LockKeyhole size={14}/> Local browser analysis</span><i/><span><ShieldCheck size={14}/> Read-only by design</span><i/><span><FileCode2 size={14}/> YAML · JSON · SARIF</span></div>
         </div>
