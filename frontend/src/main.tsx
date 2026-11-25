@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, GitBranch, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
 import "./styles.css";
 
-const MAX_INPUT_BYTES = 1_000_000;
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
 
 const MAX_INPUT_BYTES = 1_000_000;
