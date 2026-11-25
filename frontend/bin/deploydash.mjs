@@ -6,8 +6,6 @@ import { analyzeYaml } from "../.cli-build/analyzer.js";
 
 const MAX_FILES = 200;
 const MAX_FILE_BYTES = 1_000_000;
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, "..");
 
 function usage() {
   process.stdout.write("Deploy Dash CLI\n\nUsage: npm run deploydash -- <file-or-directory> [--json]\n\nScans YAML/JSON Kubernetes manifests. Read-only; no cluster access.\n");
