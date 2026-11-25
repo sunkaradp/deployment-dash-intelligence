@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "tsc --strict --skipLibCheck --target ES2022 --module ES2022 --moduleResolution Bundler --outDir .test-build src/analyzer.ts && node --test tests/*.test.mjs"
+    "test": "tsc --strict --skipLibCheck --target ES2022 --module ES2022 --moduleResolution Bundler --outDir .test-build src/analyzer.ts && node --test tests/*.test.mjs",
+    "build:cli": "tsc --strict --skipLibCheck --target ES2022 --module ES2022 --moduleResolution Bundler --outDir .cli-build src/analyzer.ts",
+    "deploydash": "npm run build:cli && node bin/deploydash.mjs"
   },
   "dependencies": {
     "js-yaml": "^4.3.2",
