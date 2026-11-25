@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { analyzeYaml, proposedFix, type Analysis, type Finding, type Severity } from "./analyzer";
 import { createRoot } from "react-dom/client";
-import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, GitBranch, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
 import "./styles.css";
 
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
@@ -268,7 +268,7 @@ function App() {
     <header className="marketing-nav">
       <a className="marketing-brand" href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({top:0,behavior:"smooth"}); }}><span className="marketing-mark"><Layers3 size={19}/></span><span>deploy<span>dash</span></span></a>
       <nav className="marketing-links"><a href="#platform">Platform</a><a href="#how-it-works">How it works</a><a href="#trust">Security model</a></nav>
-      <div className="marketing-nav-actions"><a className="nav-github" href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><GitBranch size={15}/> GitHub</a><button className="nav-cta" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Open analyzer <ArrowRight size={15}/></button></div>
+      <div className="marketing-nav-actions"><button className="nav-cta" onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Open analyzer <ArrowRight size={15}/></button></div>
     </header>
     <main id="top">
       <section className="marketing-hero">
@@ -311,7 +311,7 @@ function App() {
       <section className="trust-section" id="trust"><div className="trust-top"><div className="section-kicker">03 — TRUST IS AN ENGINEERING REQUIREMENT</div><h2>Useful insight.<br/><em>Without taking control.</em></h2></div><div className="trust-grid"><div><LockKeyhole size={20}/><h3>Your manifest stays local</h3><p>Browser analysis runs on the device. The static demo does not upload your YAML to a hosted analysis service.</p></div><div><ShieldCheck size={20}/><h3>Read-only by design</h3><p>No cluster connection, deployment, patch, restart or automatic remediation is performed.</p></div><div><Info size={20}/><h3>Honest about its scope</h3><p>Rules are advisory configuration checks — not a compliance certification or proof of runtime safety.</p></div></div></section>
       <section className="closing-section"><div className="section-kicker">DEPLOYMENT DASH INTELLIGENCE</div><h2>Make the next deployment<br/>a more informed one.</h2><button onClick={() => { setView("workspace"); window.scrollTo(0,0); }}>Open the analyzer <ArrowRight size={17}/></button><span>MANIFEST IN. CLEARER SIGNAL OUT.</span></section>
     </main>
-    <footer className="marketing-footer"><a className="marketing-brand" href="#top"><span className="marketing-mark"><Layers3 size={17}/></span><span>deploy<span>dash</span></span></a><span>Independent Kubernetes deployment analysis.</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer">Open source on GitHub <ArrowRight size={13}/></a></footer>
+    <footer className="marketing-footer"><a className="marketing-brand" href="#top"><span className="marketing-mark"><Layers3 size={17}/></span><span>deploy<span>dash</span></span></a><span>Independent Kubernetes deployment analysis.</span><span>Created by Durga Prasad Sunkara.</span></footer>
   </div>;
   return <div className="app-shell">
     <aside className="sidebar">
@@ -319,12 +319,10 @@ function App() {
       <div className="side-label">WORKSPACE</div>
       <div className="side-item active"><Gauge size={17}/> Readiness analysis <i/></div>
       
-      <div className="side-label side-label-bottom">PROJECT</div>
-      <a className="side-item" href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><GitBranch size={17}/> GitHub repository <ArrowRight size={14}/></a>
       <div className="sidebar-foot"><div className="status-line"><span/> LOCAL ANALYSIS ENGINE</div><p>Manifest checks run in your browser. No cluster credentials required.</p><div className="version">LOCAL · READ ONLY</div></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="breadcrumb"><button className="breadcrumb-home" onClick={() => { setView("home"); window.scrollTo(0,0); }}>deploydash</button> <span>/</span> <strong>Readiness analysis</strong></div><div className="top-actions"><span className="privacy"><LockKeyhole size={13}/> READ-ONLY MODE</span><a href="https://github.com/sunkaradp/deployment-dash-intelligence" target="_blank" rel="noreferrer"><GitBranch size={16}/> Source</a></div></header>
+      <header className="topbar"><div className="breadcrumb"><button className="breadcrumb-home" onClick={() => { setView("home"); window.scrollTo(0,0); }}>deploydash</button> <span>/</span> <strong>Readiness analysis</strong></div><div className="top-actions"><span className="privacy"><LockKeyhole size={13}/> READ-ONLY MODE</span></div></header>
       <section className="page-intro"><div><div className="eyebrow"><span/> PRE-DEPLOYMENT CHECK</div><h1>Know the risk <em>before</em> you ship.</h1><p>Inspect Kubernetes workload manifests for configuration gaps and security risks. Get clear findings your team can act on.</p></div><div className="intro-note"><ShieldCheck size={18}/><span><strong>Safe by design</strong><small>No cluster access. No changes applied.</small></span></div></section>
       <section className="workspace-grid">
         <div className="panel editor-panel">
