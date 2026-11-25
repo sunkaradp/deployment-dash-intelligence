@@ -14,7 +14,7 @@ A public release is blocked until every required item below is verified against 
 ## Source and history security
 
 - [x] Automated Gitleaks workflow scans reachable Git history on scheduled and repository events.
-- [x] Gitleaks workflow uploads its redacted SARIF report as a 30-day workflow artifact, including when the scan step fails (verify artifact availability for the exact run).
+- [x] Gitleaks workflow attempts to upload its redacted SARIF report as a 30-day workflow artifact even after a failed scan step; verify the artifact exists for the exact run because no artifact is possible if the report was never created.
 - [ ] Download and review the latest Gitleaks artifact; investigate every finding and rotate any credential that was ever exposed. A successful scan is not a substitute for manual triage.
 - [ ] Review author metadata and remove personal information that should not be public, where feasible.
 - [ ] Review all tracked files, examples, screenshots, test fixtures, and generated artifacts.
