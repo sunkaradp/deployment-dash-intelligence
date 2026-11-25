@@ -7,6 +7,85 @@ import "./styles.css";
 const MAX_INPUT_BYTES = 1_000_000;
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
 
+const MAX_INPUT_BYTES = 1_000_000;
+const MAX_FINDINGS = 5_000;
+const SAMPLE = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-api
+  template:
+    metadata:
+      labels:
+        app: payments-api
+    spec:
+      hostNetwork: true
+      containers:
+        - name: api
+          image: example.com/payments-api:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+            limits:
+              cpu: "500m"
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+`;
+const CLEAN_SAMPLE = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: storefront
+  template:
+    metadata:
+      labels:
+        app: storefront
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/acme/storefront:2.4.1
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+`;
+function safeHelpUri(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.length > 2_048) return undefined;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" ? parsed.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function analysisFromSarif(raw: unknown): Analysis {
   const report = obj(raw);
   const runs = Array.isArray(report.runs) ? report.runs : [];
