@@ -19,6 +19,15 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - name: Set up Node.js for cross-engine parity tests
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+      - name: Build TypeScript analyzer for parity tests
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build:cli
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
       - name: Dependency vulnerability audit
