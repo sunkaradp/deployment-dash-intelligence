@@ -14,7 +14,8 @@ A public release is blocked until every required item below is verified against 
 ## Source and history security
 
 - [x] Automated Gitleaks workflow scans reachable Git history on scheduled and repository events.
-- [ ] Review the latest Gitleaks report and investigate every finding; rotate any credential that was ever exposed.
+- [x] Gitleaks workflow uploads its redacted SARIF report as a 30-day workflow artifact, including when the scan step fails (verify artifact availability for the exact run).
+- [ ] Download and review the latest Gitleaks artifact; investigate every finding and rotate any credential that was ever exposed. A successful scan is not a substitute for manual triage.
 - [ ] Review author metadata and remove personal information that should not be public, where feasible.
 - [ ] Review all tracked files, examples, screenshots, test fixtures, and generated artifacts.
 - [ ] Confirm no real kubeconfig, token, private key, customer manifest, or internal endpoint is present.
@@ -39,7 +40,7 @@ A public release is blocked until every required item below is verified against 
 - [ ] Pin the pip-audit tool and other build-time tools used by CI.
 - [ ] Enable and review dependency update automation, vulnerability alerts, and push protection where available.
 - [ ] Review workflow permissions, action provenance, shell interpolation, and untrusted pull-request behavior.
-- [ ] Verify the latest CI, Pages, CodeQL, secret scanning, Action smoke, and Kubescape runs for the exact release candidate.
+- [ ] Verify the latest CI, Pages, CodeQL, secret scanning, Action smoke, and Kubescape runs for the exact release candidate. For Action smoke, use the workflow's `workflow_dispatch` trigger and select the exact candidate branch or tag; record the resulting run URL.
 
 ## Public documentation and demo
 
@@ -58,4 +59,4 @@ A public release is blocked until every required item below is verified against 
 - [ ] Create a versioned release and changelog only after all required gates pass.
 - [ ] Re-run this complete checklist against the exact release commit.
 
-**Current status: NOT READY.** Core checks, parser bounds, the initial threat model, the Apache-2.0 license file, static browser privacy guard, and pinned Action example are present. Reproducible installs, full dependency license inventory, observed browser network verification, manual secret-history review, ownership confirmation, and independent security review remain open.
+**Current status: NOT READY.** Core checks, parser bounds, the initial threat model, the Apache-2.0 license file, static browser privacy guard, retained redacted secret-scan reports, and a manually triggerable Action smoke workflow are present. Reproducible installs, full dependency license inventory, observed browser network verification, manual secret-history review, ownership confirmation, and independent security review remain open.
