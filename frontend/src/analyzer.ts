@@ -14,40 +14,6 @@ function obj(value: unknown): Record<string, any> { return value !== null && typ
 function pathObject(value: unknown, path: string): Record<string, any> { let current: unknown = value; path.split(".").forEach((part) => { current = obj(current)[part]; }); return obj(current); }
 function makeFinding(rule: keyof typeof WEIGHTS, severity: Severity, title: string, message: string, path: string, recommendation: string): Finding { return { rule_id: rule, severity, title, message, path, recommendation, points: WEIGHTS[rule] }; }
 
-export function proposedFix(finding: Finding): { yaml: string; note: string } | null {
-  const fixes: Record<string, { yaml: string; note: string }> = {
-    PRIVILEGED_CONTAINER: { yaml: "securityContext:\n  privileged: false", note: "Review whether the workload genuinely requires privileged mode before applying." },
-    PRIVILEGE_ESCALATION_ALLOWED: { yaml: "securityContext:\n  allowPrivilegeEscalation: false", note: "Validate compatibility with the container entrypoint and runtime." },
-    PRIVILEGE_ESCALATION_NOT_DISABLED: { yaml: "securityContext:\n  allowPrivilegeEscalation: false", note: "Validate compatibility with the container entrypoint and runtime." },
-    RUN_AS_NON_ROOT_NOT_SET: { yaml: "securityContext:\n  runAsNonRoot: true", note: "The image must support non-root execution; check file ownership and writable paths." },
-    READ_ONLY_ROOT_FILESYSTEM_NOT_SET: { yaml: "securityContext:\n  readOnlyRootFilesystem: true", note: "Move required writes to explicitly mounted volumes or temporary storage first." },
-    ALL_CAPABILITIES_NOT_DROPPED: { yaml: "securityContext:\n  capabilities:\n    drop:\n      - ALL", note: "Test the application after dropping capabilities; add back only individually justified capabilities." },
-    SECCOMP_PROFILE_NOT_SET: { yaml: "securityContext:\n  seccompProfile:\n    type: RuntimeDefault", note: "Validate the workload under the runtime default seccomp profile." },
-    HOST_PID_ENABLED: { yaml: "hostPID: false", note: "Confirm the workload does not depend on the host PID namespace." },
-    HOST_IPC_ENABLED: { yaml: "hostIPC: false", note: "Confirm the workload does not depend on the host IPC namespace." },
-    SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED: { yaml: "automountServiceAccountToken: false", note: "Only disable this when the workload does not need Kubernetes API credentials." },
-    HOST_NETWORK_ENABLED: { yaml: "hostNetwork: false", note: "Confirm the workload does not depend on the node network namespace." },
-  };
-  return fixes[finding.rule_id] || null;
-}
-
-function proposedFix(finding: Finding): { yaml: string; note: string } | null {
-  const fixes: Record<string, { yaml: string; note: string }> = {
-    PRIVILEGED_CONTAINER: { yaml: "securityContext:\n  privileged: false", note: "Review whether the workload genuinely requires privileged mode before applying." },
-    PRIVILEGE_ESCALATION_ALLOWED: { yaml: "securityContext:\n  allowPrivilegeEscalation: false", note: "Validate compatibility with the container entrypoint and runtime." },
-    PRIVILEGE_ESCALATION_NOT_DISABLED: { yaml: "securityContext:\n  allowPrivilegeEscalation: false", note: "Validate compatibility with the container entrypoint and runtime." },
-    RUN_AS_NON_ROOT_NOT_SET: { yaml: "securityContext:\n  runAsNonRoot: true", note: "The image must support non-root execution; check file ownership and writable paths." },
-    READ_ONLY_ROOT_FILESYSTEM_NOT_SET: { yaml: "securityContext:\n  readOnlyRootFilesystem: true", note: "Move required writes to explicitly mounted volumes or temporary storage first." },
-    ALL_CAPABILITIES_NOT_DROPPED: { yaml: "securityContext:\n  capabilities:\n    drop:\n      - ALL", note: "Test the application after dropping capabilities; add back only individually justified capabilities." },
-    SECCOMP_PROFILE_NOT_SET: { yaml: "securityContext:\n  seccompProfile:\n    type: RuntimeDefault", note: "Validate the workload under the runtime default seccomp profile." },
-    HOST_PID_ENABLED: { yaml: "hostPID: false", note: "Confirm the workload does not depend on the host PID namespace." },
-    HOST_IPC_ENABLED: { yaml: "hostIPC: false", note: "Confirm the workload does not depend on the host IPC namespace." },
-    SERVICE_ACCOUNT_TOKEN_AUTOMOUNTED: { yaml: "automountServiceAccountToken: false", note: "Only disable this when the workload does not need Kubernetes API credentials." },
-    HOST_NETWORK_ENABLED: { yaml: "hostNetwork: false", note: "Confirm the workload does not depend on the node network namespace." },
-  };
-  return fixes[finding.rule_id] || null;
-}
-
 export function analyzeYaml(source: string): Analysis {
   if (!source.trim()) throw new Error("Paste or upload at least one Kubernetes YAML manifest.");
   if (new TextEncoder().encode(source).length > MAX_INPUT_BYTES) throw new Error("Input exceeds the 1 MB safety limit.");
