@@ -16,3 +16,4 @@ build/
 
 # Compiled browser analyzer test output
 frontend/.test-build/
+frontend/.cli-build/
