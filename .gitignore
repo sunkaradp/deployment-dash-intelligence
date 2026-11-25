@@ -13,3 +13,6 @@ build/
 .idea/
 .vscode/
 .DS_Store
+
+# Compiled browser analyzer test output
+frontend/.test-build/
