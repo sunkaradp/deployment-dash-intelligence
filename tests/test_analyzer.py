@@ -374,3 +374,53 @@ def test_shared_cross_engine_fixture_preserves_core_rule_identifiers():
         "PRIVILEGED_CONTAINER",
         "HOST_NETWORK_ENABLED",
     }.issubset(rule_ids)
+
+
+def test_typescript_and_python_engines_match_shared_fixtures():
+    import json
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    node = shutil.which("node")
+    engine = root / "frontend" / ".cli-build" / "analyzer.js"
+    if node is None or not engine.exists():
+        pytest.skip("Build the TypeScript analyzer with npm run build:cli to run parity checks.")
+
+    fixtures = sorted((root / "tests" / "fixtures").glob("parity-*.yaml"))
+    assert fixtures, "Expected shared parity fixtures"
+
+    for fixture in fixtures:
+        source = fixture.read_text(encoding="utf-8")
+        python_result = analyze_documents(source)
+        cli = subprocess.run(
+            [
+                node,
+                "frontend/bin/deploydash.mjs",
+                str(fixture.relative_to(root)),
+                "--json",
+            ],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert cli.returncode == 1, cli.stderr or cli.stdout
+        typescript_report = json.loads(cli.stdout)["reports"][0]
+
+        def signature(result):
+            return sorted(
+                (
+                    finding["rule_id"],
+                    finding["severity"],
+                    finding["path"],
+                    finding["points"],
+                )
+                for finding in result["findings"]
+            )
+
+        assert signature(typescript_report) == signature(python_result), fixture.name
+        assert typescript_report["risk_score"] == python_result["risk_score"], fixture.name
+        assert typescript_report["risk_level"] == python_result["risk_level"], fixture.name
+        assert typescript_report["summary"] == python_result["summary"], fixture.name
