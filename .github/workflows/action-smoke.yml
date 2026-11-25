@@ -14,6 +14,7 @@ on:
       - ".github/workflows/action-smoke.yml"
       - "frontend/**"
       - "tests/fixtures/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
