@@ -150,3 +150,15 @@ test("CLI reports findings and uses non-zero exit status", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+
+test("shared cross-engine fixture preserves core rule identifiers", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { resolve } = await import("node:path");
+  const fixture = await readFile(resolve(process.cwd(), "../tests/fixtures/action-risky.yaml"), "utf8");
+  const result = analyzeYaml(fixture);
+  const ids = new Set(result.findings.map((finding) => finding.rule_id));
+  for (const id of ["SINGLE_REPLICA", "MUTABLE_IMAGE_TAG", "PRIVILEGED_CONTAINER", "HOST_NETWORK_ENABLED"]) {
+    assert.ok(ids.has(id), `shared fixture expected rule ${id}`);
+  }
+});
