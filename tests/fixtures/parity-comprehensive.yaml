@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parity-comprehensive
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: parity-comprehensive
+  template:
+    metadata:
+      labels:
+        app: parity-comprehensive
+    spec:
+      hostPID: true
+      hostIPC: true
+      hostNetwork: true
+      automountServiceAccountToken: true
+      volumes:
+        - name: host-logs
+          hostPath:
+            path: /var/log
+      containers:
+        - name: app
+          image: example/app:latest
+          ports:
+            - containerPort: 8080
+              hostPort: 8080
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsNonRoot: false
+            runAsUser: 0
+            readOnlyRootFilesystem: false
+            capabilities:
+              add:
+                - ALL
