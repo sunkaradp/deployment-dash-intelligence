@@ -48,5 +48,7 @@ jobs:
         run: npm install
       - name: Dependency vulnerability audit
         run: npm audit --audit-level=moderate
+      - name: Test shared TypeScript analyzer
+        run: npm test
       - name: Build production bundle
         run: npm run build
