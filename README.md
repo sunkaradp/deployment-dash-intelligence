@@ -71,7 +71,7 @@ Exit codes: `0` means no findings, `1` means findings were detected, and `2` mea
 Use the composite action after checking out your repository:
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 - uses: sunkaradp/deployment-dash-intelligence/.github/actions/deploydash@main
   with:
     path: ./k8s
