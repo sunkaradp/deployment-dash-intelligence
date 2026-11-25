@@ -16,7 +16,9 @@ This document records repository evidence and remaining verification. It is not 
 - A Node regression test was added for common browser network APIs and a direct form action. It is a narrow static guard, not proof of runtime privacy.
 - SARIF import has explicit limits for runs, rules, results, and selected text fields.
 - The optional FastAPI service remains unauthenticated and rate-unlimited; it must stay private/local.
-- The latest merged browser privacy regression PR passed all eight reported checks, including CI, frontend, Action smoke, CodeQL, secret scanning, and Sourcery review.
+- The browser privacy regression was merged in [PR #11](https://github.com/sunkaradp/deployment-dash-intelligence/pull/11) at commit [`7c56056a27fe6c772a33948dccd16c92ce23cdd6`](https://github.com/sunkaradp/deployment-dash-intelligence/commit/7c56056a27fe6c772a33948dccd16c92ce23cdd6). The eight successful check runs for that exact commit are individually verifiable: [CodeQL](https://github.com/sunkaradp/deployment-dash-intelligence/runs/138901726365), [Sourcery review](https://github.com/sunkaradp/deployment-dash-intelligence/runs/138901475503), [Action smoke](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632389), [frontend](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632171), [secret scanning](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632125), [Python analysis](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632144), [Python tests](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632171), and [TypeScript/Python parity](https://github.com/sunkaradp/deployment-dash-intelligence/actions/runs/45523632144).
+- The secret-scanning workflow now uploads the redacted Gitleaks SARIF output as a 30-day workflow artifact, even when the scan step fails. Artifact availability and manual triage must be verified on a run after this workflow change; earlier runs did not retain this artifact.
+- The Action smoke workflow now supports `workflow_dispatch`, allowing a maintainer to select the exact candidate branch or tag and run the smoke test even when path filters would otherwise skip it. A successful run on the actual release candidate is still required.
 
 ## Important limitations of this review
 
@@ -36,7 +38,7 @@ Static inspection of the browser entry point found no direct use of common netwo
 
 ### Git history and secrets
 
-The repository has a Gitleaks workflow configured to scan reachable Git history. A successful workflow is evidence that the scanner completed, not proof that every possible secret was detected or that all findings were manually triaged. Review the report, check all reachable refs, and rotate any exposed credential. Never reproduce secret values in this document.
+The repository has a Gitleaks workflow configured to scan reachable Git history and now retain its redacted SARIF report as a workflow artifact for 30 days. The artifact is available only after a run using the updated workflow. A successful workflow is evidence that the scanner completed, not proof that every possible secret was detected or that all findings were manually triaged. Download and review the report, check all reachable refs, and rotate any exposed credential. Never reproduce secret values in this document.
 
 ### Ownership and legal review
 
@@ -52,7 +54,7 @@ Do not create a v1.0 tag or claim production readiness until:
 1. npm and Python dependencies are locked and clean installs pass in CI;
 2. direct and transitive dependency licenses and notices are reviewed;
 3. browser network behavior is manually inspected against synthetic canary values;
-4. Gitleaks findings and repository history are manually reviewed;
+4. Gitleaks findings and repository history are manually reviewed using a retained report from the updated workflow;
 5. ownership and publication rights are confirmed;
 6. an independent security review is completed and findings are resolved or explicitly accepted;
-7. all GitHub Actions and deployment checks pass on the exact release candidate.
+7. all GitHub Actions and deployment checks pass on the exact release candidate, including a manually dispatched Action smoke run for that candidate.
