@@ -33,10 +33,13 @@ runs:
       working-directory: ${{ github.action_path }}/../../../frontend
       env:
         DEPLOYDASH_PATH: ${{ inputs.path }}
+        DEPLOYDASH_WORKSPACE: ${{ github.workspace }}
         DEPLOYDASH_OUTPUT: ${{ inputs.output }}
         DEPLOYDASH_FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
       run: |
-        args=("$DEPLOYDASH_PATH")
+        scan_path="$DEPLOYDASH_PATH"
+        if [[ "$scan_path" != /* ]]; then scan_path="$DEPLOYDASH_WORKSPACE/$scan_path"; fi
+        args=("$scan_path")
         if [ "$DEPLOYDASH_OUTPUT" = "json" ]; then args+=("--json"); fi
         node bin/deploydash.mjs "${args[@]}" || status=$?
         if [ "${status:-0}" -eq 1 ] && [ "$DEPLOYDASH_FAIL_ON_FINDINGS" != "true" ]; then exit 0; fi
