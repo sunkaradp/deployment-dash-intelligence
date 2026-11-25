@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+  namespace: data
+spec:
+  serviceName: database
+  replicas: 1
+  selector:
+    matchLabels:
+      app: database
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      hostPID: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: database
+          image: example/database:1.2.3
+          ports:
+            - containerPort: 5432
+              hostPort: 15432
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-agent
+  namespace: platform
+spec:
+  selector:
+    matchLabels:
+      app: node-agent
+  template:
+    metadata:
+      labels:
+        app: node-agent
+    spec:
+      hostNetwork: true
+      automountServiceAccountToken: true
+      volumes:
+        - name: host-logs
+          hostPath:
+            path: /var/log
+      containers:
+        - name: agent
+          image: example/node-agent:latest
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration
+  namespace: operations
+spec:
+  template:
+    metadata:
+      labels:
+        app: data-migration
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: example/migrate
+          ports:
+            - containerPort: 8080
+              hostPort: 18080
+          securityContext:
+            runAsUser: 0
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-cleanup
+  namespace: operations
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: nightly-cleanup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: example/cleanup:2.0.0
+              securityContext:
+                capabilities:
+                  add: [ALL]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ignored-settings
+  namespace: operations
+data:
+  mode: test
