@@ -6,19 +6,19 @@ const browserEntry = await readFile(new URL("../src/main.tsx", import.meta.url),
 
 test("browser analyzer does not transmit manifest content through network APIs", () => {
   const forbiddenNetworkCalls = [
-    /\\bfetch\\s*\\(/,
-    /\\bXMLHttpRequest\\b/,
-    /\\bWebSocket\\b/,
-    /\\bEventSource\\b/,
-    /\\bsendBeacon\\s*\\(/,
-    /\\bnavigator\\.serviceWorker\\b/,
+    /\bfetch\s*\(/,
+    /\bXMLHttpRequest\b/,
+    /\bWebSocket\b/,
+    /\bEventSource\b/,
+    /\bsendBeacon\s*\(/,
+    /\bnavigator\.serviceWorker\b/,
   ];
 
   for (const pattern of forbiddenNetworkCalls) {
-    assert.doesNotMatch(browserEntry, pattern, `Unexpected browser network capability: ${pattern}`);
+    assert.doesNotMatch(browserEntry, pattern, "Unexpected browser network capability: " + pattern);
   }
 });
 
 test("browser entry has no direct form submission endpoint", () => {
-  assert.doesNotMatch(browserEntry, /<form[\\s\\S]{0,500}action=/i);
+  assert.doesNotMatch(browserEntry, /<form[\s\S]{0,500}action=/i);
 });
