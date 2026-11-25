@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyzeYaml, proposedFix } from "../.test-build/analyzer.js";
+import { analyzeYaml, proposedFix } from "../.cli-build/analyzer.js";
 
 const SAFE = `apiVersion: apps/v1
 kind: Deployment
@@ -133,4 +133,20 @@ test("fix suggestions exist only for supported rule identifiers", () => {
   assert.match(proposedFix(privileged).yaml, /privileged: false/);
   const unsupported = { ...privileged, rule_id: "UNKNOWN_RULE" };
   assert.equal(proposedFix(unsupported), null);
+});
+
+test("CLI reports findings and uses non-zero exit status", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { writeFile, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "deploydash-"));
+  try {
+    await writeFile(join(dir, "risky.yaml"), RISKY, "utf8");
+    const result = spawnSync(process.execPath, ["bin/deploydash.mjs", dir], { cwd: process.cwd(), encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /PRIVILEGED_CONTAINER/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
