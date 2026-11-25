@@ -1,0 +1,43 @@
+name: Deploy Dash Kubernetes manifest review
+description: Scan Kubernetes YAML with Deploy Dash and fail on findings.
+inputs:
+  path:
+    description: File or directory containing YAML/JSON Kubernetes manifests
+    required: false
+    default: .
+  fail-on-findings:
+    description: Return a failing status when findings are detected
+    required: false
+    default: "true"
+  output:
+    description: "Output format: text or json"
+    required: false
+    default: text
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: "22"
+    - name: Install Deploy Dash runtime
+      shell: bash
+      working-directory: ${{ github.action_path }}/frontend
+      run: npm install --ignore-scripts --no-audit --no-fund
+    - name: Build shared rules engine
+      shell: bash
+      working-directory: ${{ github.action_path }}/frontend
+      run: npm run build:cli
+    - name: Scan Kubernetes manifests
+      shell: bash
+      working-directory: ${{ github.action_path }}/frontend
+      env:
+        DEPLOYDASH_PATH: ${{ inputs.path }}
+        DEPLOYDASH_OUTPUT: ${{ inputs.output }}
+        DEPLOYDASH_FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        args=("$DEPLOYDASH_PATH")
+        if [ "$DEPLOYDASH_OUTPUT" = "json" ]; then args+=("--json"); fi
+        node bin/deploydash.mjs "${args[@]}" || status=$?
+        if [ "${status:-0}" -eq 1 ] && [ "$DEPLOYDASH_FAIL_ON_FINDINGS" != "true" ]; then exit 0; fi
+        exit "${status:-0}"
