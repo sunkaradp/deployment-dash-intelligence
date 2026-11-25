@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: action-smoke-risky
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: action-smoke-risky
+  template:
+    metadata:
+      labels:
+        app: action-smoke-risky
+    spec:
+      hostNetwork: true
+      containers:
+        - name: app
+          image: example/app:latest
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
