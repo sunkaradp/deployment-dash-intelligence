@@ -49,6 +49,37 @@ npm install
 npm run dev
 ```
 
+### CLI and GitHub Action
+
+The CLI and composite GitHub Action use the same TypeScript rules module as the browser analyzer.
+
+Build and run the CLI from `frontend/`:
+
+```bash
+npm install
+npm run deploydash -- ../path/to/kubernetes/manifests
+```
+
+Use `--json` for machine-readable output:
+
+```bash
+npm run deploydash -- ../path/to/kubernetes/manifests --json
+```
+
+Exit codes: `0` means no findings, `1` means findings were detected, and `2` means an input or analysis error occurred. The CLI scans YAML/JSON files only, with per-file and file-count limits; it does not connect to a cluster or modify files.
+
+Use the composite action after checking out your repository:
+
+```yaml
+- uses: actions/checkout@v4
+- uses: sunkaradp/deployment-dash-intelligence/.github/actions/deploydash@main
+  with:
+    path: ./k8s
+    fail-on-findings: "true"
+```
+
+The action currently runs the read-only scan and fails the step when findings exist. It does not yet post inline pull-request comments or publish SARIF; those are separate follow-up integrations. Pin the action to a reviewed commit SHA in production workflows.
+
 ### Backend API
 
 From the repository root:
