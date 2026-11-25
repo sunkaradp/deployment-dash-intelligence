@@ -32,12 +32,12 @@ The analyzer checks both Pod-level and container-level security-context settings
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Frontend | React, TypeScript, Vite | Manifest editor, analysis results, responsive UI |
-| Browser analysis | TypeScript, js-yaml | Fast local deterministic checks; no cluster credentials |
+| Shared browser/Node rules engine | TypeScript, js-yaml (`frontend/src/analyzer.ts`) | Deterministic manifest checks reusable by the browser and future Node CLI / GitHub Action |
 | API | Python, FastAPI, PyYAML | Versioned analysis endpoint |
-| Quality | pytest, Ruff, TypeScript, Vite, GitHub Actions | Backend tests/lint and frontend production build |
+| Quality | pytest, Ruff, TypeScript, Node test runner, Vite, GitHub Actions | Backend tests/lint, golden analyzer fixtures, type-check and frontend production build |
 | Hosting | GitHub Pages | Public static frontend |
 
-The browser runs deterministic checks locally by default, so the public demo works without a hosted API or Kubernetes credentials. The FastAPI endpoint is an optional private/local integration surface and is not part of the public demo.
+The browser runs deterministic checks locally by default, so the public demo works without a hosted API or Kubernetes credentials. The FastAPI endpoint is an optional private/local integration surface and is not part of the public demo. The browser's YAML rules now live in a standalone TypeScript module with golden tests; this is the rules engine intended for reuse by a Node CLI and GitHub Action. The optional Python API still has its own Python implementation, so exact browser/API parity is not claimed yet.
 
 ## Run locally
 
