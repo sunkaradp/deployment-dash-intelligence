@@ -360,3 +360,17 @@ def test_ignores_non_workload_documents_and_counts_them():
     result = analyze_documents(source)
     assert result["summary"]["workloads_analyzed"] == 1
     assert result["summary"]["documents_ignored"] == 1
+
+
+def test_shared_cross_engine_fixture_preserves_core_rule_identifiers():
+    from pathlib import Path
+
+    fixture = Path(__file__).parent / "fixtures" / "action-risky.yaml"
+    result = analyze_documents(fixture.read_text(encoding="utf-8"))
+    rule_ids = {finding["rule_id"] for finding in result["findings"]}
+    assert {
+        "SINGLE_REPLICA",
+        "MUTABLE_IMAGE_TAG",
+        "PRIVILEGED_CONTAINER",
+        "HOST_NETWORK_ENABLED",
+    }.issubset(rule_ids)
