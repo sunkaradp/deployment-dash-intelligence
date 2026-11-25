@@ -26,10 +26,16 @@ jobs:
       - name: Build TypeScript analyzer for parity tests
         working-directory: frontend
         run: |
-          npm install
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm run build:cli
-      - name: Install dependencies
-        run: python -m pip install -e ".[dev]"
+      - name: Generate hash-locked Python dependencies
+        run: |
+          python -m pip install --disable-pip-version-check "pip-tools==7.4.1"
+          pip-compile --generate-hashes --resolver=backtracking pyproject.toml --output-file requirements-prod.lock
+          pip-compile --generate-hashes --resolver=backtracking --extra dev pyproject.toml --output-file requirements-dev.lock
+      - name: Install Python dependencies from hashes
+        run: python -m pip install --require-hashes -r requirements-dev.lock
       - name: Dependency vulnerability audit
         run: |
           python -m pip install pip-audit
@@ -38,6 +44,16 @@ jobs:
         run: ruff check .
       - name: Test
         run: pytest
+      - name: Retain generated Python lockfiles
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-lockfiles
+          path: |
+            requirements-prod.lock
+            requirements-dev.lock
+          if-no-files-found: warn
+          retention-days: 7
 
   frontend:
     runs-on: ubuntu-latest
@@ -53,11 +69,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package.json
-      - name: Install dependencies
-        run: npm install
+      - name: Generate and validate npm lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
       - name: Dependency vulnerability audit
         run: npm audit --audit-level=moderate
       - name: Test shared TypeScript analyzer
         run: npm test
       - name: Build production bundle
         run: npm run build
+      - name: Retain generated npm lockfile
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: npm-lockfile
+          path: package-lock.json
+          if-no-files-found: warn
+          retention-days: 7
