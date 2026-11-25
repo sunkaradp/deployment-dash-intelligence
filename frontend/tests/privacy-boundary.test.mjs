@@ -25,12 +25,12 @@ const browserSources = await Promise.all(sourceFiles.map(async (path) => ({
 
 test("all browser-loaded source modules avoid direct network APIs", () => {
   const forbiddenNetworkCalls = [
-    /\\bfetch\\s*\\(/,
-    /\\bXMLHttpRequest\\b/,
-    /\\bWebSocket\\b/,
-    /\\bEventSource\\b/,
-    /\\bsendBeacon\\s*\\(/,
-    /\\bnavigator\\.serviceWorker\\b/,
+    /\bfetch\s*\(/,
+    /\bXMLHttpRequest\b/,
+    /\bWebSocket\b/,
+    /\bEventSource\b/,
+    /\bsendBeacon\s*\(/,
+    /\bnavigator\.serviceWorker\b/,
   ];
 
   assert.ok(browserSources.length > 0, "Expected browser source modules to be inspected");
@@ -43,6 +43,6 @@ test("all browser-loaded source modules avoid direct network APIs", () => {
 
 test("browser source modules have no direct form submission endpoint", () => {
   for (const source of browserSources) {
-    assert.doesNotMatch(source.content, /<form\\b[^>]*\\baction\\s*=/i, source.path + " contains a direct form action");
+    assert.doesNotMatch(source.content, /<form\b[^>]*\baction\s*=/i, source.path + " contains a direct form action");
   }
 });
