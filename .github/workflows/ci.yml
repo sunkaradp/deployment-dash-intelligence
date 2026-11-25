@@ -87,3 +87,37 @@ jobs:
           path: frontend/package-lock.json
           if-no-files-found: warn
           retention-days: 7
+
+  commit-lockfiles:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'chore/reproducible-lockfiles' && github.actor == 'sunkaradp'
+    needs: [test, frontend]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the lockfile branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Download generated lockfile artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --name npm-lockfile --dir "$RUNNER_TEMP/npm-lockfile"
+          gh run download "$GITHUB_RUN_ID" --name python-lockfiles --dir "$RUNNER_TEMP/python-lockfiles"
+
+      - name: Commit verified lockfiles to the maintainer branch
+        run: |
+          cp "$RUNNER_TEMP/npm-lockfile/package-lock.json" frontend/package-lock.json
+          cp "$RUNNER_TEMP/python-lockfiles/requirements-prod.lock" requirements-prod.lock
+          cp "$RUNNER_TEMP/python-lockfiles/requirements-dev.lock" requirements-dev.lock
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json requirements-prod.lock requirements-dev.lock
+          if git diff --cached --quiet; then
+            echo "Lockfiles are already current."
+            exit 0
+          fi
+          git commit -m "build: add reproducible dependency lockfiles"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
