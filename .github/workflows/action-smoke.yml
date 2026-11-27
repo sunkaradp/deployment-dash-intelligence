@@ -8,6 +8,7 @@ on:
       - ".github/workflows/action-smoke.yml"
       - "frontend/**"
       - "tests/fixtures/**"
+      - "README.md"
   pull_request:
     paths:
       - ".github/actions/deploydash/**"
