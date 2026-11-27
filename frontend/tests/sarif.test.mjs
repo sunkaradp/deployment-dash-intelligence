@@ -1,0 +1,8 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { analysisFromSarif } from "../.cli-build/sarif.js";
+const sarif = (results = [], rules = []) => ({ version: "2.1.0", runs: [{ tool: { driver: { name: "Test scanner", rules } }, results }] });
+test("SARIF resolves rule metadata by ID and preserves severity", () => { const r=analysisFromSarif(sarif([{ruleId:"RISK",message:{text:"Unsafe setting"},level:"error"}],[{id:"RISK",shortDescription:{text:"Risky configuration"},helpUri:"https://example.com/control"}])); assert.equal(r.findings[0].title,"Risky configuration"); assert.equal(r.findings[0].severity,"high"); assert.equal(r.findings[0].help_uri,"https://example.com/control"); });
+test("SARIF ignores out-of-range indexes and unsafe help URI schemes", () => { const r=analysisFromSarif(sarif([{ruleIndex:999,message:{text:"Finding"},locations:[{physicalLocation:{artifactLocation:{uri:"app.yaml"}}}]}],[{id:"OTHER",helpUri:"javascript:alert(1)"}])); assert.equal(r.findings[0].rule_id,"KUBESCAPE_FINDING"); assert.equal(r.findings[0].help_uri,undefined); });
+test("SARIF rejects malformed field types and oversized results", () => { assert.throws(()=>analysisFromSarif(sarif([{ruleId:42}])),/rule ID must be a string/); assert.throws(()=>analysisFromSarif(sarif(Array.from({length:5001},()=>({})))),/5,000-result/); });
+test("SARIF resolves large rule catalogs", () => { const rules=Array.from({length:5000},(_,i)=>({id:"RULE_"+i,shortDescription:{text:"Rule "+i}})); const results=Array.from({length:500},(_,i)=>({ruleId:"RULE_"+(4999-i),message:{text:"Finding "+i}})); const r=analysisFromSarif(sarif(results,rules)); assert.equal(r.findings.length,500); assert.equal(r.findings[0].title,"Rule 4999"); });
