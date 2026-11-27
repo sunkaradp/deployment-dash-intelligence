@@ -6,13 +6,6 @@ import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, 
 import "./styles.css";
 
 function obj(value: unknown): Record<string, any> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {}; }
-function boundedText(value: unknown, field: string, maxLength: number): string {
-  if (value == null) return "";
-  if (typeof value !== "string") throw new Error("SARIF " + field + " must be a string.");
-  if (value.length > maxLength) throw new Error("SARIF " + field + " exceeds the " + maxLength + " character safety limit.");
-  return value;
-}
-
 const MAX_INPUT_BYTES = 1_000_000;
 const SAMPLE = `apiVersion: apps/v1
 kind: Deployment
