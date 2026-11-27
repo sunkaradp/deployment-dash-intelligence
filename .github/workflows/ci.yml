@@ -1,13 +1,10 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
-
 permissions:
   contents: read
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,22 +16,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Set up Node.js for cross-engine parity tests
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-      - name: Build TypeScript analyzer for parity tests
-        working-directory: frontend
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci --ignore-scripts --no-audit --no-fund
-          npm run build:cli
-      - name: Generate hash-locked Python dependencies
-        run: |
-          python -m pip install --disable-pip-version-check "pip==26.3" "pip-tools==7.7.0"
-          pip-compile --generate-hashes --resolver=backtracking pyproject.toml --output-file requirements-prod.lock
-          pip-compile --generate-hashes --resolver=backtracking --extra dev pyproject.toml --output-file requirements-dev.lock
-      - name: Install Python dependencies from hashes
+          cache-dependency-path: requirements-dev.lock
+      - name: Install Python dependencies from committed hashes
         run: python -m pip install --require-hashes -r requirements-dev.lock
       - name: Dependency vulnerability audit
         run: |
@@ -42,18 +25,8 @@ jobs:
           pip-audit --skip-editable
       - name: Lint
         run: ruff check .
-      - name: Test
+      - name: Test Python API
         run: python -m pytest
-      - name: Retain generated Python lockfiles
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: python-lockfiles
-          path: |
-            requirements-prod.lock
-            requirements-dev.lock
-          if-no-files-found: warn
-          retention-days: 7
 
   frontend:
     runs-on: ubuntu-latest
@@ -68,56 +41,12 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package.json
-      - name: Generate and validate npm lockfile
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci --ignore-scripts --no-audit --no-fund
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies from committed lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Dependency vulnerability audit
         run: npm audit --audit-level=moderate
-      - name: Test shared TypeScript analyzer
+      - name: Test shared TypeScript analyzer and CLI
         run: npm test
-      - name: Build production bundle
+      - name: Build production frontend
         run: npm run build
-      - name: Retain generated npm lockfile
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: npm-lockfile
-          path: frontend/package-lock.json
-          if-no-files-found: warn
-          retention-days: 7
-
-  commit-lockfiles:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'chore/reproducible-lockfiles' && github.actor == 'sunkaradp'
-    needs: [test, frontend]
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the lockfile branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Download generated lockfile artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download "$GITHUB_RUN_ID" --name npm-lockfile --dir "$RUNNER_TEMP/npm-lockfile"
-          gh run download "$GITHUB_RUN_ID" --name python-lockfiles --dir "$RUNNER_TEMP/python-lockfiles"
-
-      - name: Commit verified lockfiles to the maintainer branch
-        run: |
-          cp "$RUNNER_TEMP/npm-lockfile/package-lock.json" frontend/package-lock.json
-          cp "$RUNNER_TEMP/python-lockfiles/requirements-prod.lock" requirements-prod.lock
-          cp "$RUNNER_TEMP/python-lockfiles/requirements-dev.lock" requirements-dev.lock
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package-lock.json requirements-prod.lock requirements-dev.lock
-          if git diff --cached --quiet; then
-            echo "Lockfiles are already current."
-            exit 0
-          fi
-          git commit -m "build: add reproducible dependency lockfiles"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
