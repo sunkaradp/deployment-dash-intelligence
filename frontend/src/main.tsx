@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { analyzeYaml, proposedFix, type Analysis, type Finding, type Severity } from "./analyzer";
+import { analyzeYaml, proposedFix, type Analysis, type Severity } from "./analyzer";
 import { analysisFromSarif } from "./sarif";
 import { createRoot } from "react-dom/client";
 import { AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, CheckCircle2, Clipboard, FileCode2, Gauge, Info, Layers3, LockKeyhole, Play, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Terminal, Upload, X } from "lucide-react";
@@ -14,7 +14,6 @@ function boundedText(value: unknown, field: string, maxLength: number): string {
 }
 
 const MAX_INPUT_BYTES = 1_000_000;
-const MAX_FINDINGS = 5_000;
 const SAMPLE = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -82,18 +81,6 @@ spec:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
 `;
-function safeHelpUri(value: unknown): string | undefined {
-  if (typeof value !== "string" || value.length > 2_048) return undefined;
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" ? parsed.href : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-
-
 function App() {
   const [view, setView] = useState<"home" | "workspace">("home");
   const [yaml, setYaml] = useState(SAMPLE);
