@@ -17,10 +17,6 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements-dev.lock
-      - name: Set up Node.js for cross-engine parity tests
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
       - name: Install Python dependencies from committed hashes
         run: python -m pip install --require-hashes -r requirements-dev.lock
       - name: Dependency vulnerability audit
@@ -31,15 +27,26 @@ jobs:
         run: ruff check .
       - name: Test Python API
         run: python -m pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies from committed lockfile
-        working-directory: frontend
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Build TypeScript analyzer for cross-engine parity tests
-        working-directory: frontend
-        run: npm run build:cli
+      - name: Dependency vulnerability audit
+        run: npm audit --audit-level=moderate
       - name: Test shared TypeScript analyzer and CLI
-        working-directory: frontend
         run: npm test
       - name: Build production frontend
-        working-directory: frontend
         run: npm run build
