@@ -121,6 +121,69 @@ spec:
   assert.ok(result.findings.some((finding) => finding.rule_id === "MUTABLE_IMAGE_TAG"));
 });
 
+
+test("init containers are analyzed without requiring application probes", () => {
+  const source = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: init-risk
+spec:
+  selector:
+    matchLabels:
+      app: init-risk
+  template:
+    metadata:
+      labels:
+        app: init-risk
+    spec:
+      initContainers:
+        - name: bootstrap
+          image: example/bootstrap:latest
+          securityContext:
+            privileged: true
+      containers:
+        - name: app
+          image: example/app:1.0
+`;
+  const result = analyzeYaml(source);
+  const privileged = result.findings.find((finding) => finding.rule_id === "PRIVILEGED_CONTAINER");
+  assert.ok(privileged);
+  assert.equal(privileged.container, "bootstrap");
+  assert.match(privileged.path, /initContainers\[0\]/);
+  assert.equal(result.findings.filter((finding) => finding.container === "bootstrap" && /PROBE/.test(finding.rule_id)).length, 0);
+});
+
+test("ephemeral containers receive security checks without unsupported resource or probe checks", () => {
+  const source = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debug-risk
+spec:
+  selector:
+    matchLabels:
+      app: debug-risk
+  template:
+    metadata:
+      labels:
+        app: debug-risk
+    spec:
+      containers:
+        - name: app
+          image: example/app:1.0
+      ephemeralContainers:
+        - name: debug
+          image: example/debug:latest
+          securityContext:
+            privileged: true
+`;
+  const result = analyzeYaml(source);
+  const debugFindings = result.findings.filter((finding) => finding.container === "debug");
+  assert.ok(debugFindings.some((finding) => finding.rule_id === "PRIVILEGED_CONTAINER"));
+  assert.ok(debugFindings.some((finding) => finding.rule_id === "MUTABLE_IMAGE_TAG"));
+  assert.equal(debugFindings.some((finding) => ["MISSING_RESOURCE_REQUESTS", "MISSING_MEMORY_LIMIT", "MISSING_READINESSPROBE", "MISSING_LIVENESSPROBE"].includes(finding.rule_id)), false);
+  assert.ok(debugFindings.every((finding) => finding.path.includes("ephemeralContainers[0]")));
+});
+
 test("input and document limits are enforced", () => {
   assert.throws(() => analyzeYaml("x".repeat(1_000_001)), /1 MB/);
   assert.throws(() => analyzeYaml(Array.from({ length: 101 }, () => "apiVersion: v1\nkind: ConfigMap").join("\n---\n")), /100-document/);
