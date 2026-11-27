@@ -84,7 +84,7 @@ export function analyzeYaml(source: string): Analysis {
       const path = base + "." + podPath + "." + field + "[" + containerIndex + "]";
       const isEphemeral = field === "ephemeralContainers";
       const supportsProbes = field === "containers";
-      if (Array.isArray(container.ports)) container.ports.forEach((portValue: unknown, portIndex: number) => { const hostPort = obj(portValue).hostPort; if (typeof hostPort === "number" && hostPort > 0) findings.push(makeFinding("HOST_PORT_EXPOSED", "medium", "Host port exposed", "The container binds a port directly on the Kubernetes node.", path + ".ports[" + portIndex + "].hostPort", "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.")); });
+      if (!isEphemeral && Array.isArray(container.ports)) container.ports.forEach((portValue: unknown, portIndex: number) => { const hostPort = obj(portValue).hostPort; if (typeof hostPort === "number" && hostPort > 0) findings.push(makeFinding("HOST_PORT_EXPOSED", "medium", "Host port exposed", "The container binds a port directly on the Kubernetes node.", path + ".ports[" + portIndex + "].hostPort", "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.")); });
       if (!isEphemeral) {
         const resources = obj(container.resources);
         const requests = obj(resources.requests);
