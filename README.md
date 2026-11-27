@@ -14,7 +14,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 
 - Browser-based YAML upload and editing.
 - Multi-document YAML parsing.
-- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes, privileged mode, privilege escalation, non-root execution and UID 0, read-only root filesystems, Linux capabilities, seccomp profiles, host namespaces, host networking, host ports, hostPath volumes, and explicit service-account-token automounting.
+- Checks for replica count, CPU/memory requests, memory limits, required container images, image tag pinning, readiness/liveness probes for regular containers, init-container configuration, ephemeral debug containers, privileged mode, privilege escalation, non-root execution and UID 0, read-only root filesystems, Linux capabilities, seccomp profiles, host namespaces, host networking, host ports, hostPath volumes, and explicit service-account-token automounting.
 - Finding severity, evidence path, and recommendation.
 - Optional FastAPI analysis endpoint.
 - Responsive React and TypeScript interface.
@@ -25,7 +25,7 @@ A polished, read-only Kubernetes deployment risk analysis application. It helps 
 
 The built-in rules are deterministic manifest checks, not a full Kubernetes policy engine. They intentionally flag configuration that deserves review, including missing hardening settings. A finding is not automatically proof of exploitability: validate each recommendation against application requirements, cluster defaults, and your admission policy.
 
-The analyzer checks both Pod-level and container-level security-context settings where Kubernetes supports inheritance or overrides. It does not inspect live cluster defaults, service-account configuration, admission policies, image contents, or runtime state.
+The analyzer checks regular containers, init containers, and ephemeral debug containers. It applies security and image checks to all three, while avoiding application-probe and resource-limit checks that are not valid for init or ephemeral container use cases. The analyzer also checks both Pod-level and container-level security-context settings where Kubernetes supports inheritance or overrides. It does not inspect live cluster defaults, service-account configuration, admission policies, image contents, or runtime state.
 
 ## Architecture
 
