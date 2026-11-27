@@ -61,9 +61,15 @@ export function analyzeYaml(source: string): Analysis {
     const workloadIdentity = kind + "/" + workloadName;
     const podPath = kind === "CronJob" ? "spec.jobTemplate.spec.template.spec" : "spec.template.spec";
     const pod = pathObject(resource, podPath);
-    const containers = Array.isArray(pod.containers) ? pod.containers.map(obj) : [];
-    if (!containers.length) {
-      const finding = makeFinding("WORKLOAD_NO_CONTAINERS", "high", "No containers defined", "The workload pod template has no valid containers.", base, "Define at least one container in the pod template.");
+    const containerGroups = (["containers", "initContainers", "ephemeralContainers"] as const).flatMap((field) =>
+      (Array.isArray(pod[field]) ? pod[field] : []).map((value: unknown, index: number) => ({
+        field,
+        index,
+        value: obj(value),
+      })),
+    );
+    if (!containerGroups.length) {
+      const finding = makeFinding("WORKLOAD_NO_CONTAINERS", "high", "No containers defined", "The workload pod template has no valid regular, init, or ephemeral containers.", base, "Define at least one container in the pod template.");
       finding.resource = workloadIdentity;
       finding.namespace = namespace || undefined;
       findings.push(finding);
@@ -73,22 +79,26 @@ export function analyzeYaml(source: string): Analysis {
       const replicas = obj(resource.spec).replicas ?? 1;
       if (typeof replicas === "number" && replicas < 2) findings.push(makeFinding("SINGLE_REPLICA", "medium", "Single replica configured", "Only one replica is configured, so a pod disruption may cause downtime.", base + ".spec.replicas", "Consider at least two replicas when the application and budget support it."));
     }
-    containers.forEach((container, containerIndex) => {
+    containerGroups.forEach(({ field, index: containerIndex, value: container }) => {
       if (findings.length >= MAX_FINDINGS) throw new Error("Analysis exceeds the 5,000-finding safety limit.");
-      const path = base + "." + podPath + ".containers[" + containerIndex + "]";
+      const path = base + "." + podPath + "." + field + "[" + containerIndex + "]";
+      const isEphemeral = field === "ephemeralContainers";
+      const supportsProbes = field === "containers";
       if (Array.isArray(container.ports)) container.ports.forEach((portValue: unknown, portIndex: number) => { const hostPort = obj(portValue).hostPort; if (typeof hostPort === "number" && hostPort > 0) findings.push(makeFinding("HOST_PORT_EXPOSED", "medium", "Host port exposed", "The container binds a port directly on the Kubernetes node.", path + ".ports[" + portIndex + "].hostPort", "Prefer a Service or Ingress; use hostPort only when a reviewed networking requirement exists.")); });
-      const resources = obj(container.resources);
-      const requests = obj(resources.requests);
-      const limits = obj(resources.limits);
-      if (!requests.cpu || !requests.memory) findings.push(makeFinding("MISSING_RESOURCE_REQUESTS", "medium", "Resource requests incomplete", "CPU and memory requests help the scheduler place workloads predictably.", path + ".resources.requests", "Set realistic CPU and memory requests based on observed usage."));
-      if (!limits.memory) findings.push(makeFinding("MISSING_MEMORY_LIMIT", "medium", "Memory limit missing", "Without a memory limit, this container can consume node memory without a per-container cap.", path + ".resources.limits", "Set a memory limit appropriate to the workload; validate it under representative load."));
+      if (!isEphemeral) {
+        const resources = obj(container.resources);
+        const requests = obj(resources.requests);
+        const limits = obj(resources.limits);
+        if (!requests.cpu || !requests.memory) findings.push(makeFinding("MISSING_RESOURCE_REQUESTS", "medium", "Resource requests incomplete", "CPU and memory requests help the scheduler place workloads predictably.", path + ".resources.requests", "Set realistic CPU and memory requests based on observed usage."));
+        if (!limits.memory) findings.push(makeFinding("MISSING_MEMORY_LIMIT", "medium", "Memory limit missing", "Without a memory limit, this container can consume node memory without a per-container cap.", path + ".resources.limits", "Set a memory limit appropriate to the workload; validate it under representative load."));
+      }
       if (typeof container.image !== "string" || !container.image.trim()) {
         findings.push(makeFinding("MISSING_CONTAINER_IMAGE", "high", "Container image missing", "The container does not define an image reference, so the workload cannot be deployed as written.", path + ".image", "Set the container image to a valid registry reference and prefer an immutable digest for release workloads."));
       } else {
         const image = container.image.split("/").pop() || "";
         if (image.indexOf(":") === -1 || image.endsWith(":latest")) findings.push(makeFinding("MUTABLE_IMAGE_TAG", "medium", "Image tag may be mutable", "The image reference does not pin a specific version or digest.", path + ".image", "Use an explicit version tag or immutable image digest."));
       }
-      (["readinessProbe", "livenessProbe"] as const).forEach((probe) => {
+      if (supportsProbes) (["readinessProbe", "livenessProbe"] as const).forEach((probe) => {
         if (!Object.keys(obj(container[probe])).length) {
           const rule = probe === "readinessProbe" ? "MISSING_READINESSPROBE" : "MISSING_LIVENESSPROBE";
           findings.push(makeFinding(rule, "low", probe + " missing", "No " + probe + " is configured for this container.", path + "." + probe, "Add an appropriate probe if the application exposes a reliable health signal."));
@@ -131,10 +141,11 @@ export function analyzeYaml(source: string): Analysis {
     findings.slice(findingStart).forEach((finding) => {
       finding.resource = workloadIdentity;
       finding.namespace = namespace || undefined;
-      const containerIndexMatch = finding.path.match(/containers\[(\d+)\]/);
+      const containerIndexMatch = finding.path.match(/(?:containers|initContainers|ephemeralContainers)\[(\d+)\]/);
       if (containerIndexMatch) {
-        const container = containers[Number(containerIndexMatch[1])];
-        if (container && typeof container.name === "string") finding.container = container.name;
+        const group = containerIndexMatch[0].startsWith("initContainers") ? "initContainers" : containerIndexMatch[0].startsWith("ephemeralContainers") ? "ephemeralContainers" : "containers";
+        const container = (Array.isArray(pod[group]) ? pod[group] : [])[Number(containerIndexMatch[1])];
+        if (container && typeof obj(container).name === "string") finding.container = obj(container).name;
       }
     });
   });
