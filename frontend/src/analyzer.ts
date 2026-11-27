@@ -141,10 +141,10 @@ export function analyzeYaml(source: string): Analysis {
     findings.slice(findingStart).forEach((finding) => {
       finding.resource = workloadIdentity;
       finding.namespace = namespace || undefined;
-      const containerIndexMatch = finding.path.match(/(?:containers|initContainers|ephemeralContainers)\[(\d+)\]/);
+      const containerIndexMatch = finding.path.match(/(initContainers|ephemeralContainers|containers)\[(\d+)\]/);
       if (containerIndexMatch) {
-        const group = containerIndexMatch[0].startsWith("initContainers") ? "initContainers" : containerIndexMatch[0].startsWith("ephemeralContainers") ? "ephemeralContainers" : "containers";
-        const container = (Array.isArray(pod[group]) ? pod[group] : [])[Number(containerIndexMatch[1])];
+        const group = containerIndexMatch[1];
+        const container = (Array.isArray(pod[group]) ? pod[group] : [])[Number(containerIndexMatch[2])];
         if (container && typeof obj(container).name === "string") finding.container = obj(container).name;
       }
     });
